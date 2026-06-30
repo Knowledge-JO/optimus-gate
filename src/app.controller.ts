@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
-import { AppService } from "./app.service";
+import { Body, Controller, Get, Post } from '@nestjs/common';
+import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
@@ -10,7 +10,7 @@ export class AppController {
     return this.appService.getHello();
   }
 
-  @Post("/webhook")
+  @Post('/webhook')
   webhook(@Body() data: any) {
     console.log(data);
   }

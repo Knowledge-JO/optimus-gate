@@ -1,0 +1,27 @@
+ <div className="flex gap-4 border-b">
+          {(["all", "verified", "unverified"] as FilterTab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setFilterTab(tab)}
+              className={cn(
+                "relative flex items-center gap-1.5 pb-2 text-[12.5px] transition-colors",
+                filter === tab
+                  ? "font-medium text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-[2px] after:rounded-full after:bg-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {tab !== "all" && (
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    tab === "verified" ? "bg-green-500" : "bg-amber-500",
+                  )}
+                />
+              )}
+              {tab}
+              <span className="text-[11px] text-muted-foreground/70">
+                {counts[tab]}
+              </span>
+            </button>
+          ))}
+        </div>

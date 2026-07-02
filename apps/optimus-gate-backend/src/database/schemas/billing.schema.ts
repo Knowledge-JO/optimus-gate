@@ -1,0 +1,221 @@
+import {
+  boolean,
+  integer,
+  index,
+  jsonb,
+  numeric,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
+import { users } from './users.schema';
+
+export const billingIntervalEnum = pgEnum('billing_interval', [
+  'day',
+  'week',
+  'month',
+  'year',
+]);
+
+export const subscriptionStatusEnum = pgEnum('subscription_status', [
+  'incomplete',
+  'active',
+  'past_due',
+  'suspended',
+  'canceled',
+]);
+
+export const invoiceStatusEnum = pgEnum('invoice_status', [
+  'draft',
+  'open',
+  'paid',
+  'failed',
+  'void',
+  'uncollectible',
+]);
+
+export const paymentAttemptStatusEnum = pgEnum('payment_attempt_status', [
+  'pending',
+  'processing',
+  'succeeded',
+  'failed',
+  'requires_action',
+]);
+
+export const paymentMethodTypeEnum = pgEnum('payment_method_type', [
+  'tokenized_card',
+]);
+
+export const plans = pgTable('plans', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 120 }).notNull(),
+  description: text('description'),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('NGN'),
+  interval: billingIntervalEnum('interval').notNull().default('month'),
+  intervalCount: integer('interval_count').notNull().default(1),
+  isActive: boolean('is_active').notNull().default(true),
+  metadata: jsonb('metadata')
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const customerPaymentMethods = pgTable(
+  'customer_payment_methods',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: varchar('provider', { length: 40 }).notNull().default('nomba'),
+    type: paymentMethodTypeEnum('type').notNull().default('tokenized_card'),
+    tokenKey: varchar('token_key', { length: 255 }).notNull(),
+    customerId: varchar('customer_id', { length: 120 }).notNull(),
+    customerEmail: varchar('customer_email', { length: 255 }).notNull(),
+    isDefault: boolean('is_default').notNull().default(false),
+    metadata: jsonb('metadata')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('customer_payment_methods_user_id_idx').on(table.userId),
+    index('customer_payment_methods_customer_id_idx').on(table.customerId),
+  ],
+);
+
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => plans.id),
+    paymentMethodId: uuid('payment_method_id').references(
+      () => customerPaymentMethods.id,
+    ),
+    status: subscriptionStatusEnum('status').notNull().default('incomplete'),
+    customerId: varchar('customer_id', { length: 120 }).notNull(),
+    customerEmail: varchar('customer_email', { length: 255 }).notNull(),
+    currentPeriodStart: timestamp('current_period_start', {
+      withTimezone: true,
+    }),
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    canceledAt: timestamp('canceled_at', { withTimezone: true }),
+    metadata: jsonb('metadata')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('subscriptions_user_id_idx').on(table.userId),
+    index('subscriptions_plan_id_idx').on(table.planId),
+    index('subscriptions_status_idx').on(table.status),
+  ],
+);
+
+export const subscriptionInvoices = pgTable(
+  'subscription_invoices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    subscriptionId: uuid('subscription_id')
+      .notNull()
+      .references(() => subscriptions.id, { onDelete: 'cascade' }),
+    status: invoiceStatusEnum('status').notNull().default('open'),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    currency: varchar('currency', { length: 3 }).notNull().default('NGN'),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    periodStart: timestamp('period_start', { withTimezone: true }),
+    periodEnd: timestamp('period_end', { withTimezone: true }),
+    metadata: jsonb('metadata')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('subscription_invoices_user_id_idx').on(table.userId),
+    index('subscription_invoices_subscription_id_idx').on(table.subscriptionId),
+    index('subscription_invoices_status_idx').on(table.status),
+  ],
+);
+
+export const subscriptionPaymentAttempts = pgTable(
+  'subscription_payment_attempts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    subscriptionId: uuid('subscription_id')
+      .notNull()
+      .references(() => subscriptions.id, { onDelete: 'cascade' }),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => subscriptionInvoices.id, { onDelete: 'cascade' }),
+    paymentMethodId: uuid('payment_method_id').references(
+      () => customerPaymentMethods.id,
+    ),
+    status: paymentAttemptStatusEnum('status').notNull().default('pending'),
+    provider: varchar('provider', { length: 40 }).notNull().default('nomba'),
+    providerReference: varchar('provider_reference', { length: 160 }).notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    currency: varchar('currency', { length: 3 }).notNull().default('NGN'),
+    attemptNumber: integer('attempt_number').notNull().default(1),
+    failureReason: text('failure_reason'),
+    rawResponse: jsonb('raw_response').$type<Record<string, unknown>>(),
+    nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('subscription_payment_attempts_invoice_id_idx').on(table.invoiceId),
+    index('subscription_payment_attempts_reference_idx').on(
+      table.providerReference,
+    ),
+    index('subscription_payment_attempts_status_idx').on(table.status),
+  ],
+);

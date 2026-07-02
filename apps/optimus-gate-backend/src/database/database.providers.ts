@@ -3,8 +3,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './schemas';
 import { DATABASE_POOL, DRIZZLE_DB } from './database.constants';
 
-const defaultConnectionString =
-  'postgresql://postgres:postgres@localhost:5432/optimus_gate';
+const defaultConnectionString = '';
 
 export const databaseProviders = [
   {

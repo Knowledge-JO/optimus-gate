@@ -18,7 +18,7 @@ jobs:
       - name: Install Heroku Builds Plugin
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        run: heroku plugins:install @heroku-cli/plugin-api
+        run: heroku plugins:install @heroku-cli/heroku-builds
 
       # Bundle and push only the backend folder
       - name: Deploy Backend to Heroku

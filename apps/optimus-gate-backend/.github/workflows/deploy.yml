@@ -1,0 +1,23 @@
+name: Deploy Monorepo Apps
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Log into Heroku CLI inside the runner
+      - name: Install Heroku CLI
+        run: curl https://heroku.com | sh
+
+      # Bundle and push only the backend folder
+      - name: Deploy Backend to Heroku
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          heroku plugins:install heroku-builds
+          cd apps/optimus-gate-backend && heroku builds:create -a ${{ secrets.HEROKU_APP_BACKEND }}

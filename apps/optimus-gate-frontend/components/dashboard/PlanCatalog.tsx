@@ -92,113 +92,30 @@ function PlanDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-hidden p-0 sm:max-w-2xl lg:max-w-3xl">
-        <div className="border-b border-black/10 p-5">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-hidden p-0 sm:max-w-xl lg:max-w-2xl">
+        <div className="border-b border-black/10 px-4 py-4 sm:px-5">
           <DialogHeader>
             <DialogTitle className="break-words pr-8 text-xl font-black leading-tight text-black">
               {plan.name}
             </DialogTitle>
-            <DialogDescription className="break-words pr-8">
+            <DialogDescription className="break-words pr-8 text-xs">
               {plan.description || "Subscription plan details and checkout link creation."}
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="grid max-h-[calc(100dvh-11rem)] min-w-0 gap-4 overflow-y-auto p-4 sm:p-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
-          <div className="min-w-0 space-y-3 rounded-lg border border-black/10 bg-[#fbfaf7] p-4">
-            <Detail label="Plan code" value={plan.code} />
-            <Detail label="Amount" value={`${formatNaira(plan.amount)} / ${plan.interval}`} />
-            <Detail label="Currency" value={plan.currency ?? "NGN"} />
-            <Detail label="Subscriptions" value={plan.subscriptions.toLocaleString()} />
-            <Detail label="Revenue" value={formatNaira(plan.revenue)} />
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pt-1">
-              <span className="text-xs uppercase tracking-[0.14em] text-zinc-500">
-                Status
-              </span>
-              <StatusCell status={plan.status} />
-            </div>
-          </div>
+        <div className="grid max-h-[calc(100dvh-9rem)] min-w-0 gap-4 overflow-y-auto p-4 sm:p-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <PlanSummary plan={plan} />
 
-          <form action={formAction} className="min-w-0 space-y-3">
-            <input type="hidden" name="planId" value={plan.id} />
-            {state.message && (
-              <p
-                className={`rounded-lg border px-3 py-2 text-sm ${
-                  state.status === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-red-200 bg-red-50 text-red-700"
-                }`}
-              >
-                {state.message}
-              </p>
-            )}
-            <div className="grid gap-2">
-              <Label htmlFor="customerEmail">Customer email</Label>
-              <Input
-                id="customerEmail"
-                name="customerEmail"
-                type="email"
-                placeholder="customer@example.com"
-              />
-              <FieldError errors={state.fieldErrors?.customerEmail} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="customerName">Customer name</Label>
-              <Input id="customerName" name="customerName" placeholder="Ada Lovelace" />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="customerId">Customer ID</Label>
-              <Input
-                id="customerId"
-                name="customerId"
-                placeholder="Optional external customer id"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="callbackUrl">Callback URL</Label>
-              <Input
-                id="callbackUrl"
-                name="callbackUrl"
-                placeholder="https://example.com/billing/callback"
-              />
-              <FieldError errors={state.fieldErrors?.callbackUrl} />
-            </div>
-            <CheckoutSubmitButton />
-          </form>
+          {state.checkoutLink ? (
+            <CheckoutLinkPanel
+              checkoutLink={state.checkoutLink}
+              orderReference={state.orderReference}
+            />
+          ) : (
+            <CheckoutLinkForm formAction={formAction} state={state} plan={plan} />
+          )}
         </div>
-
-        {state.checkoutLink && (
-          <div className="border-t border-black/10 bg-zinc-50 p-5">
-            <div className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="flex items-center gap-2 text-sm font-black text-black">
-                  <Link2 className="size-4" />
-                  Checkout link
-                </p>
-                <p className="mt-1 break-all font-mono text-xs text-zinc-500 sm:truncate">
-                  {state.checkoutLink}
-                </p>
-                {state.orderReference && (
-                  <p className="mt-1 break-all font-mono text-[11px] text-zinc-400">
-                    {state.orderReference}
-                  </p>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <CopyButton
-                  value={state.checkoutLink}
-                  className="h-9 w-9 rounded-lg border border-black/10 text-black"
-                />
-                <Button asChild className="h-9 bg-black text-white hover:bg-zinc-900">
-                  <a href={state.checkoutLink} target="_blank" rel="noreferrer">
-                    <ExternalLink className="size-4" />
-                    Open
-                  </a>
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <DialogFooter showCloseButton />
       </DialogContent>
@@ -206,13 +123,143 @@ function PlanDetailsDialog({
   );
 }
 
+function PlanSummary({ plan }: { plan: PlanRecord }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-black/10 bg-[#fbfaf7] p-3">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">
+            Plan summary
+          </p>
+          <p className="mt-1 truncate text-sm font-black text-black">
+            {formatNaira(plan.amount)} / {plan.interval}
+          </p>
+        </div>
+        <StatusCell status={plan.status} />
+      </div>
+      <div className="space-y-1.5">
+        <Detail label="Plan code" value={plan.code} />
+        <Detail label="Currency" value={plan.currency ?? "NGN"} />
+        <Detail label="Subscriptions" value={plan.subscriptions.toLocaleString()} />
+        <Detail label="Revenue" value={formatNaira(plan.revenue)} />
+      </div>
+    </div>
+  );
+}
+
+function CheckoutLinkForm({
+  formAction,
+  plan,
+  state,
+}: {
+  formAction: (formData: FormData) => void;
+  plan: PlanRecord;
+  state: MutationState;
+}) {
+  return (
+    <form action={formAction} className="min-w-0 space-y-3">
+      <input type="hidden" name="planId" value={plan.id} />
+      {state.message && (
+        <p
+          className={`rounded-lg border px-3 py-2 text-sm ${
+            state.status === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
+          {state.message}
+        </p>
+      )}
+      <div className="grid gap-2">
+        <Label htmlFor="customerEmail">Customer email</Label>
+        <Input
+          id="customerEmail"
+          name="customerEmail"
+          type="email"
+          placeholder="customer@example.com"
+        />
+        <FieldError errors={state.fieldErrors?.customerEmail} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="customerName">Customer name</Label>
+        <Input id="customerName" name="customerName" placeholder="Ada Lovelace" />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="customerId">Customer ID</Label>
+        <Input
+          id="customerId"
+          name="customerId"
+          placeholder="Optional external customer id"
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="callbackUrl">Callback URL</Label>
+        <Input
+          id="callbackUrl"
+          name="callbackUrl"
+          placeholder="https://example.com/billing/callback"
+        />
+        <FieldError errors={state.fieldErrors?.callbackUrl} />
+      </div>
+      <CheckoutSubmitButton />
+    </form>
+  );
+}
+
+function CheckoutLinkPanel({
+  checkoutLink,
+  orderReference,
+}: {
+  checkoutLink: string;
+  orderReference?: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-black/10 bg-white p-3">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex size-7 items-center justify-center rounded-md bg-black text-white">
+          <Link2 className="size-3.5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-black text-black">Checkout link</p>
+          <p className="text-xs text-zinc-500">Ready to share with the customer.</p>
+        </div>
+      </div>
+
+      <div className="flex min-w-0 items-center gap-2 rounded-lg border border-black/10 bg-zinc-50 p-1.5">
+        <input
+          readOnly
+          value={checkoutLink}
+          className="h-8 min-w-0 flex-1 bg-transparent px-2 font-mono text-xs text-zinc-600 outline-none"
+        />
+        <CopyButton
+          value={checkoutLink}
+          className="h-8 w-8 shrink-0 rounded-md border border-black/10 bg-white text-black hover:bg-zinc-100"
+        />
+      </div>
+
+      {orderReference && (
+        <p className="mt-2 truncate font-mono text-[11px] text-zinc-400">
+          {orderReference}
+        </p>
+      )}
+
+      <Button asChild className="mt-3 h-9 w-full bg-black text-white hover:bg-zinc-900">
+        <a href={checkoutLink} target="_blank" rel="noreferrer">
+          <ExternalLink className="size-4" />
+          Open checkout
+        </a>
+      </Button>
+    </div>
+  );
+}
+
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] items-start gap-3">
-      <span className="min-w-0 text-xs uppercase tracking-[0.14em] text-zinc-500">
+    <div className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)] items-center gap-3 rounded-md bg-white/70 px-2.5 py-2">
+      <span className="min-w-0 text-[11px] uppercase tracking-[0.12em] text-zinc-500">
         {label}
       </span>
-      <span className="min-w-0 break-words text-right text-sm font-black text-black">
+      <span className="min-w-0 truncate text-right text-xs font-black text-black">
         {value}
       </span>
     </div>

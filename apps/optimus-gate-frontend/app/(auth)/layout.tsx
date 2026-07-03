@@ -10,9 +10,9 @@ export default function AuthLayout({
       <div className="grid min-h-screen lg:grid-cols-[0.92fr_1.08fr]">
         <section className="hidden bg-black px-10 py-8 text-white lg:flex lg:flex-col">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-white text-sm font-bold text-slate-950">
+            {/* <div className="flex size-10 items-center justify-center rounded-lg bg-white text-sm font-bold text-slate-950">
               OG
-            </div>
+            </div> */}
             <div>
               <p className="text-sm font-semibold">Optimus Gate</p>
               <p className="text-xs text-slate-400">Merchant dashboard</p>

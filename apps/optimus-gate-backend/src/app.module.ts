@@ -1,13 +1,27 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import * as Joi from 'joi';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
+import { DatabaseModule } from './database/database.module';
+
+function getTrackerValue(value: unknown) {
+  if (typeof value === 'string') {
+    return value.split(',')[0]?.trim() || 'unknown';
+  }
+
+  if (Array.isArray(value) && value[0]) {
+    return getTrackerValue(value[0]);
+  }
+
+  return 'unknown';
+}
 
 @Module({
   imports: [
@@ -17,6 +31,14 @@ import { BillingModule } from './billing/billing.module';
         DATABASE_URL: Joi.string().optional(),
         JWT_ACCESS_SECRET: Joi.string().optional(),
         JWT_REFRESH_SECRET: Joi.string().optional(),
+        CORS_ALLOWED_ORIGINS: Joi.string().optional(),
+        CORS_ALLOWED_HEADERS: Joi.string().optional(),
+        CORS_EXPOSED_HEADERS: Joi.string().optional(),
+        CORS_MAX_AGE: Joi.number().integer().min(0).optional(),
+        CORS_CREDENTIALS: Joi.boolean().optional(),
+        TRUST_PROXY: Joi.alternatives()
+          .try(Joi.boolean(), Joi.number().integer().min(0), Joi.string())
+          .optional(),
         NOMBA_BASE_URL: Joi.string().uri().optional(),
         NOMBA_ACCOUNT_ID: Joi.string().optional(),
         NOMBA_CLIENT_ID: Joi.string().optional(),
@@ -29,20 +51,54 @@ import { BillingModule } from './billing/billing.module';
           .optional(),
         REDIS_HOST: Joi.string().optional(),
         REDIS_PORT: Joi.number().optional(),
+        THROTTLE_TTL_MS: Joi.number().integer().min(1000).optional(),
+        THROTTLE_LIMIT: Joi.number().integer().min(1).optional(),
+        THROTTLE_BLOCK_DURATION_MS: Joi.number().integer().min(1000).optional(),
       }),
     }),
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60_000,
-        limit: 60,
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: configService.get<number>('THROTTLE_TTL_MS') ?? 60_000,
+            limit: configService.get<number>('THROTTLE_LIMIT') ?? 120,
+            blockDuration: configService.get<number>(
+              'THROTTLE_BLOCK_DURATION_MS',
+              60_000,
+            ),
+          },
+        ],
+        getTracker: (request: Record<string, unknown>) => {
+          const headers = request.headers as Record<
+            string,
+            string | string[] | undefined
+          >;
+          const forwardedFor =
+            headers?.['x-forwarded-for'] ?? request['x-forwarded-for'];
+          const tracker = getTrackerValue(forwardedFor);
+
+          if (tracker !== 'unknown') {
+            return tracker;
+          }
+
+          return getTrackerValue(request.ip);
+        },
+      }),
+    }),
     AuthModule,
     ApiKeysModule,
     BillingModule,
+    DatabaseModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

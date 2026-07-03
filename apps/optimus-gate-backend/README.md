@@ -1,98 +1,192 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Optimus Gate Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS API for Optimus Gate. The backend owns authentication, businesses, API keys, billing plans, subscription checkout, renewal charging, Nomba integration, ledger entries, and dashboard read models consumed by the frontend.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This app lives inside the monorepo at:
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```txt
+apps/optimus-gate-backend
 ```
 
-## Compile and run the project
+## Stack
 
-```bash
-# development
-$ npm run start
+- NestJS 11
+- PostgreSQL
+- Drizzle ORM and Drizzle Kit
+- Passport JWT authentication
+- API-key authentication for public checkout APIs
+- BullMQ and Redis for scheduled renewal work
+- Nomba checkout and transaction verification
+- Jest for tests
 
-# watch mode
-$ npm run start:dev
+## Main Modules
 
-# production mode
-$ npm run start:prod
+- `auth` - signup, login, refresh, logout, password reset, and `/auth/me`.
+- `businesses` - default merchant business and customer records.
+- `api-keys` - scoped merchant API keys for external integrations.
+- `billing` - plans, subscriptions, invoices, payment attempts, checkout orders, dashboard billing routes, webhook handling, and renewals.
+- `ledger` - available/pending account entries for credits, refunds, reversals, payouts, and adjustments.
+- `nomba` - Nomba auth, checkout, transaction verification, and webhook signature helpers.
+- `queues` - Redis/BullMQ queue setup and renewal processor wiring.
+- `database` - Drizzle schemas and database provider.
+
+## Environment
+
+Create an `.env` file in `apps/optimus-gate-backend`.
+
+```env
+PORT=4000
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/optimus_gate
+
+JWT_ACCESS_SECRET=dev-access-secret
+JWT_REFRESH_SECRET=dev-refresh-secret
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=30d
+
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+# or
+REDIS_URL=redis://127.0.0.1:6379
+
+NOMBA_BASE_URL=https://api.nomba.com
+NOMBA_ACCOUNT_ID=
+TEST_NOMBA_CLIENT_ID=
+TEST_NOMBA_PRIVATE_KEY=
+NOMBA_WEBHOOK_SECRET=
 ```
 
-## Run tests
+The app has development fallbacks for several values, but real database, JWT, Redis, and Nomba values should be set for meaningful billing flows.
+
+## Getting Started
+
+Install dependencies from the monorepo root:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Run the backend:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+cd apps/optimus-gate-backend
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+By default the API listens on:
 
-## Resources
+```txt
+http://localhost:4000
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## Database
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Drizzle reads schemas from:
 
-## Support
+```txt
+src/database/schemas/*.schema.ts
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Useful commands:
 
-## Stay in touch
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:studio
+npm run db:seed
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+The default local connection used by Drizzle is:
 
-## License
+```txt
+postgresql://postgres:postgres@localhost:5432/optimus_gate
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Set `DATABASE_URL` to override it.
+
+## Auth
+
+JWT auth is used for dashboard and merchant-owner routes. Refresh tokens are stored and validated by the backend.
+
+Important routes:
+
+- `POST /auth/signup`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
+- `GET /auth/me`
+
+## API Keys
+
+API keys are used by external checkout integrations. A created key is returned once; only its hash and public prefix are stored.
+
+Routes:
+
+- `POST /api-keys`
+- `GET /api-keys`
+- `PATCH /api-keys/:id`
+- `POST /api-keys/:id/revoke`
+
+## Billing and Checkout
+
+Dashboard billing routes use JWT auth:
+
+- `GET /billing/dashboard/stats`
+- `GET /billing/plans`
+- `POST /billing/plans`
+- `GET /billing/subscribers`
+- `GET /billing/subscriptions`
+- `GET /billing/transactions`
+- `GET /billing/refunds`
+- `GET /billing/payouts`
+- `GET /billing/subaccounts`
+- `GET /billing/onboarding/checklist`
+
+Public checkout routes are under `/v1`. The subscription checkout creation route accepts either a merchant API key or a dashboard JWT:
+
+- `POST /v1/checkout/subscriptions/start`
+- `GET /v1/checkout/orders/:orderReference`
+
+The frontend uses the JWT path to create a checkout link from a plan modal. External customers or third-party integrations should use API-key auth.
+
+## Webhooks and Renewals
+
+Nomba webhooks are received at:
+
+```txt
+POST /webhook
+```
+
+The backend preserves raw request bodies for webhook verification while still parsing JSON for the rest of the API.
+
+Renewal processing is queued through BullMQ. Redis must be available when running renewal workers or scheduled renewal flows.
+
+## Development Commands
+
+```bash
+npm run start:dev
+npm run build
+npm run test
+npm run test:e2e
+npm run test:cov
+```
+
+Lint and type checks:
+
+```bash
+npx eslint "{src,apps,libs,test}/**/*.ts"
+npx tsc --noEmit --incremental false
+```
+
+The package script `npm run lint` runs ESLint with `--fix`.
+
+## Frontend Integration
+
+The frontend should point to this service with:
+
+```env
+OPTIMUS_GATE_BACKEND_URL=http://localhost:4000
+```
+
+The frontend dashboard calls backend routes from server components and server actions, so access tokens are kept in HTTP-only cookies and are not exposed to browser-side JavaScript.

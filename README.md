@@ -1,159 +1,249 @@
-# Turborepo starter
+# Optimus Gate
 
-This Turborepo starter is maintained by the Turborepo core team.
+Optimus Gate is a subscription billing and checkout platform for merchants. The monorepo contains a Next.js dashboard frontend and a NestJS backend API that handles authentication, API keys, billing plans, subscription checkout, Nomba payment flows, ledger entries, and dashboard read models.
 
-## Using this example
+## Repository Layout
 
-Run the following command:
-
-```sh
-npx create-turbo@latest
+```txt
+.
+├── apps
+│   ├── optimus-gate-frontend   # Next.js dashboard
+│   └── optimus-gate-backend    # NestJS API
+├── packages
+│   ├── eslint-config           # shared ESLint config package
+│   └── typescript-config       # shared TypeScript config package
+├── package.json                # workspace and Turbo scripts
+└── turbo.json                  # task pipeline
 ```
 
-## What's inside?
+## Applications
 
-This Turborepo includes the following packages/apps:
+### Frontend
 
-### Apps and Packages
+Path:
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```txt
+apps/optimus-gate-frontend
 ```
 
-Without global `turbo`, use your package manager:
+The frontend is a Next.js App Router dashboard. It includes:
 
-```sh
-cd my-turborepo
-npx turbo build
-npm dlx turbo build
-npm exec turbo build
+- auth pages
+- protected dashboard shell
+- dashboard metrics and operational tables
+- plan creation and plan details modal
+- checkout-link creation from a plan
+- API-key settings
+- server-side backend API integration with caching, Suspense, and skeleton loading states
+
+Default local URL:
+
+```txt
+http://localhost:3000
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### Backend
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Path:
 
-```sh
-turbo build --filter=docs
+```txt
+apps/optimus-gate-backend
 ```
 
-Without global `turbo`:
+The backend is a NestJS API. It includes:
 
-```sh
-npx turbo build --filter=docs
-npm exec turbo build --filter=docs
-npm exec turbo build --filter=docs
+- auth and session refresh
+- default business creation
+- API-key management
+- plan, subscriber, subscription, transaction, refund, payout, onboarding, and stats endpoints
+- subscription checkout and checkout-order verification
+- Nomba integration and webhook handling
+- ledger accounting
+- BullMQ renewal processing
+- PostgreSQL schemas through Drizzle ORM
+
+Default local URL:
+
+```txt
+http://localhost:4000
 ```
 
-### Develop
+## Requirements
 
-To develop all apps and packages, run the following command:
+- Node.js 18 or newer
+- npm
+- PostgreSQL
+- Redis for renewal queue processing
+- Nomba credentials for real checkout/payment flows
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+## Setup
 
-```sh
-cd my-turborepo
-turbo dev
+Install dependencies at the monorepo root:
+
+```bash
+npm install
 ```
 
-Without global `turbo`, use your package manager:
+Create environment files for each app.
 
-```sh
-cd my-turborepo
-npx turbo dev
-npm exec turbo dev
-npm exec turbo dev
+Frontend:
+
+```txt
+apps/optimus-gate-frontend/.env.local
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
+```env
+OPTIMUS_GATE_BACKEND_URL=http://localhost:4000
+NEXT_PUBLIC_OPTIMUS_GATE_BACKEND_URL=http://localhost:4000
 ```
 
-Without global `turbo`:
+Backend:
 
-```sh
-npx turbo dev --filter=web
-npm exec turbo dev --filter=web
-npm exec turbo dev --filter=web
+```txt
+apps/optimus-gate-backend/.env
 ```
 
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
+```env
+PORT=4000
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/optimus_gate
+JWT_ACCESS_SECRET=dev-access-secret
+JWT_REFRESH_SECRET=dev-refresh-secret
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=30d
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+NOMBA_BASE_URL=https://api.nomba.com
+NOMBA_ACCOUNT_ID=
+TEST_NOMBA_CLIENT_ID=
+TEST_NOMBA_PRIVATE_KEY=
+NOMBA_WEBHOOK_SECRET=
 ```
 
-Without global `turbo`, use your package manager:
+## Running Locally
 
-```sh
-cd my-turborepo
-npx turbo login
-npm exec turbo login
-npm exec turbo login
+Run both apps through Turbo:
+
+```bash
+npm run dev
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+Run apps individually:
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
+```bash
+cd apps/optimus-gate-backend
+npm run start:dev
 ```
 
-Without global `turbo`:
-
-```sh
-npx turbo link
-npm exec turbo link
-npm exec turbo link
+```bash
+cd apps/optimus-gate-frontend
+npm run dev
 ```
 
-## Useful Links
+Open the frontend at:
 
-Learn more about the power of Turborepo:
+```txt
+http://localhost:3000
+```
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+The frontend expects the backend at:
+
+```txt
+http://localhost:4000
+```
+
+## Database
+
+The backend uses Drizzle ORM.
+
+```bash
+cd apps/optimus-gate-backend
+npm run db:generate
+npm run db:migrate
+```
+
+Optional:
+
+```bash
+npm run db:studio
+npm run db:seed
+```
+
+## Main Backend Routes
+
+Auth:
+
+- `POST /auth/signup`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `GET /auth/me`
+
+API keys:
+
+- `POST /api-keys`
+- `GET /api-keys`
+- `PATCH /api-keys/:id`
+- `POST /api-keys/:id/revoke`
+
+Dashboard billing:
+
+- `GET /billing/dashboard/stats`
+- `GET /billing/plans`
+- `POST /billing/plans`
+- `GET /billing/subscribers`
+- `GET /billing/subscriptions`
+- `GET /billing/transactions`
+- `GET /billing/refunds`
+- `GET /billing/payouts`
+- `GET /billing/subaccounts`
+- `GET /billing/onboarding/checklist`
+
+Checkout:
+
+- `POST /v1/checkout/subscriptions/start`
+- `GET /v1/checkout/orders/:orderReference`
+
+Webhook:
+
+- `POST /webhook`
+
+## Workspace Commands
+
+From the root:
+
+```bash
+npm run dev
+npm run build
+npm run lint
+npm run format
+npm run check-types
+```
+
+Run a command for one app with Turbo filters:
+
+```bash
+npm run dev -- --filter=optimus-gate
+npm run build -- --filter=optimus-gate-backend
+```
+
+Useful app-level checks:
+
+```bash
+cd apps/optimus-gate-frontend
+npm run lint
+npx tsc --noEmit --incremental false
+```
+
+```bash
+cd apps/optimus-gate-backend
+npx eslint "{src,apps,libs,test}/**/*.ts"
+npx tsc --noEmit --incremental false
+```
+
+## Development Notes
+
+- The frontend uses server-side API calls so auth tokens stay in HTTP-only cookies.
+- Dashboard list reads return empty states when backend reads fail, while mutations surface backend error messages in the UI.
+- The checkout start endpoint accepts either API-key auth or dashboard JWT auth.
+- The backend preserves raw body handling for `/webhook` while parsing JSON normally elsewhere.
+- Subaccount navigation in the frontend is currently commented out until the settlement-account model is completed.

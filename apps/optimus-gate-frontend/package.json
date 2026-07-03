@@ -14,6 +14,8 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.20.0",
+    "motion": "^12.42.2",
+    "motion-utils": "^12.39.0",
     "next": "16.2.9",
     "nextjs-toploader": "^3.9.17",
     "radix-ui": "^1.6.0",

@@ -15,6 +15,13 @@
       "when": 1783026518505,
       "tag": "0001_watery_falcon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783074928499,
+      "tag": "0002_overjoyed_kronos",
+      "breakpoints": true
     }
   ]
 }

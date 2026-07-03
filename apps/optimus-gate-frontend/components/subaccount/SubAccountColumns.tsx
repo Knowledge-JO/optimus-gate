@@ -61,9 +61,9 @@ export const subAccountColumns: Column<SubAccount>[] = [
               description: `This will permanently remove "${a.name}" and its split configuration. This action cannot be undone.`,
               confirmLabel: "Delete",
             },
-            onClick: (row) => {},
+            onClick: () => undefined,
           },
-          { label: "Update", onClick: (row) => {} },
+          { label: "Update", onClick: () => undefined },
         ]}
       />
     ),

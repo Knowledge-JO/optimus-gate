@@ -14,10 +14,9 @@ import {
   PayoutsFilterPopover,
   type PayoutFilters,
 } from "./PayoutsFilterPopover";
-import { MOCK_PAYOUTS } from "@/lib/payout-data";
 import { Payout } from "./type";
 
-export function PayoutsTable() {
+export function PayoutsTable({ payouts = [] }: { payouts?: Payout[] }) {
   const [filters, setFilters] = useState<PayoutFilters>({});
 
   const extraFilter = useMemo(() => {
@@ -36,11 +35,11 @@ export function PayoutsTable() {
   const accountOptions = useMemo(
     () =>
       Array.from(
-        new Set(
-          MOCK_PAYOUTS.map((p) => `${p.bankName} ${p.accountNumberMasked}`),
+          new Set(
+          payouts.map((p) => `${p.bankName} ${p.accountNumberMasked}`),
         ),
       ),
-    [],
+    [payouts],
   );
 
   const router = useRouter();
@@ -65,7 +64,7 @@ export function PayoutsTable() {
     toggleSelectAllOnPage,
     toggleRow,
     clearSelection,
-  } = usePayoutsTable(extraFilter);
+  } = usePayoutsTable(payouts, extraFilter);
 
   function openPayout(id: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -139,6 +138,7 @@ export function PayoutsTable() {
         />
 
         <PayoutDetailSheet
+          payouts={payouts}
           payoutId={activePayoutId}
           open={activePayoutId !== null}
           onOpenChange={(open) => !open && closePayout()}

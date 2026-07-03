@@ -12,7 +12,7 @@ import { ActionButton } from "./ActionButton";
 
 export function TestModeChip() {
   const router = useRouter();
-  const [mode, setMode] = useState<"sandbox" | "live">("sandbox");
+  const [mode] = useState<"sandbox" | "live">("sandbox");
   const [open, setOpen] = useState(false);
 
   if (mode === "live") return null;
@@ -33,10 +33,10 @@ export function TestModeChip() {
 
       <PopoverContent align="end" className="w-72 p-4">
         <p className="text-sm font-semibold text-slate-900">
-          You're in Sandbox mode
+          You&apos;re in Sandbox mode
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          Changes here don't affect your live account. Data is simulated.
+          Changes here stay in your sandbox environment.
         </p>
 
         <ActionButton
@@ -44,7 +44,7 @@ export function TestModeChip() {
             setOpen(false);
             router.push("/onboarding");
           }}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-black px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-900"
         >
           <Zap className="size-3.5" />
           Switch to live account

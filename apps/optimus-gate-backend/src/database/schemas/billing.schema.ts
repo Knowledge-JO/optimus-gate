@@ -11,6 +11,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { businesses, businessCustomers } from './businesses.schema';
 import { users } from './users.schema';
 
 export const billingIntervalEnum = pgEnum('billing_interval', [
@@ -51,6 +52,9 @@ export const paymentMethodTypeEnum = pgEnum('payment_method_type', [
 
 export const plans = pgTable('plans', {
   id: uuid('id').primaryKey().defaultRandom(),
+  businessId: uuid('business_id')
+    .notNull()
+    .references(() => businesses.id, { onDelete: 'cascade' }),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
@@ -77,6 +81,12 @@ export const customerPaymentMethods = pgTable(
   'customer_payment_methods',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    businessCustomerId: uuid('business_customer_id')
+      .notNull()
+      .references(() => businessCustomers.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -99,6 +109,7 @@ export const customerPaymentMethods = pgTable(
       .defaultNow(),
   },
   (table) => [
+    index('customer_payment_methods_business_id_idx').on(table.businessId),
     index('customer_payment_methods_user_id_idx').on(table.userId),
     index('customer_payment_methods_customer_id_idx').on(table.customerId),
   ],
@@ -108,6 +119,12 @@ export const subscriptions = pgTable(
   'subscriptions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    businessCustomerId: uuid('business_customer_id')
+      .notNull()
+      .references(() => businessCustomers.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -138,6 +155,7 @@ export const subscriptions = pgTable(
       .defaultNow(),
   },
   (table) => [
+    index('subscriptions_business_id_idx').on(table.businessId),
     index('subscriptions_user_id_idx').on(table.userId),
     index('subscriptions_plan_id_idx').on(table.planId),
     index('subscriptions_status_idx').on(table.status),
@@ -148,6 +166,12 @@ export const subscriptionInvoices = pgTable(
   'subscription_invoices',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    businessCustomerId: uuid('business_customer_id')
+      .notNull()
+      .references(() => businessCustomers.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -173,6 +197,10 @@ export const subscriptionInvoices = pgTable(
       .defaultNow(),
   },
   (table) => [
+    index('subscription_invoices_business_id_idx').on(table.businessId),
+    index('subscription_invoices_business_customer_id_idx').on(
+      table.businessCustomerId,
+    ),
     index('subscription_invoices_user_id_idx').on(table.userId),
     index('subscription_invoices_subscription_id_idx').on(table.subscriptionId),
     index('subscription_invoices_status_idx').on(table.status),
@@ -183,6 +211,9 @@ export const subscriptionPaymentAttempts = pgTable(
   'subscription_payment_attempts',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -212,6 +243,7 @@ export const subscriptionPaymentAttempts = pgTable(
       .defaultNow(),
   },
   (table) => [
+    index('subscription_payment_attempts_business_id_idx').on(table.businessId),
     index('subscription_payment_attempts_invoice_id_idx').on(table.invoiceId),
     index('subscription_payment_attempts_reference_idx').on(
       table.providerReference,

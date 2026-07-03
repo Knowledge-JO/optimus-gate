@@ -3,6 +3,7 @@
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
+import { z } from "zod";
 import { onboardingSchema, OnboardingData } from "@/lib/schemas/onboarding";
 import { steps } from "@/lib/steps.config";
 import BusinessProfileStep from "./steps/BusinessProfileStep";
@@ -16,14 +17,31 @@ import Stepper from "./Stepper";
 
 export function OnboardingFlow() {
   const [currentStep, setCurrentStep] = useState(0);
+  type OnboardingInput = z.input<typeof onboardingSchema>;
 
-  const methods = useForm<OnboardingData>({
+  const methods = useForm<OnboardingInput, unknown, OnboardingData>({
     resolver: zodResolver(onboardingSchema),
     mode: "onChange",
+    defaultValues: {
+      businessName: "",
+      businessDescription: "",
+      businessCategory: "",
+      staffSize: "",
+      annualSalesVolume: undefined,
+      email: "",
+      phoneCountryCode: "+234",
+      phone: "",
+      currency: "NGN",
+      webhookUrl: "",
+      bankName: "",
+      accountNumber: "",
+      accountName: "",
+      agreeToTerms: false,
+    },
   });
 
   const next = async () => {
-    const fields = steps[currentStep].fields as (keyof OnboardingData)[];
+    const fields = steps[currentStep].fields as (keyof OnboardingInput)[];
     const valid = await methods.trigger(fields);
     if (valid) setCurrentStep((s) => Math.min(s + 1, steps.length - 1));
   };

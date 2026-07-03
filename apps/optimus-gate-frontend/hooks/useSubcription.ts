@@ -1,15 +1,17 @@
 import { useTableState } from "./useTableState";
-import { MOCK_SUBCRIPTION } from "@/lib/subcription_data";
-import { SubscriptionStatus } from "@/components/subscription/type";
+import type {
+  Subscription,
+  SubscriptionStatus,
+} from "@/components/subscription/type";
 
-export function useSubscriptionTable() {
+export function useSubscriptionTable(data: Subscription[] = []) {
   return useTableState({
-    data: MOCK_SUBCRIPTION,
+    data,
     filterTabs: [
-      "active",
-      "cancelled",
-      "completed",
-      "attention",
+      "Active",
+      "Cancelled",
+      "Completed",
+      "Attention",
     ] as SubscriptionStatus[],
     getStatus: (a) => a.status,
     getSearchableText: (a) => a.plan.name,

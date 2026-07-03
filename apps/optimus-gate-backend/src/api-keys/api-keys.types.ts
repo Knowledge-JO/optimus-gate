@@ -2,7 +2,8 @@ export type ApiKeyEnvironment = 'test' | 'live';
 
 export interface AuthenticatedApiKey {
   id: string;
-  userId: string;
+  businessId: string;
+  createdByUserId: string;
   environment: ApiKeyEnvironment;
   scopes: string[];
 }

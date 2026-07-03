@@ -6,6 +6,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { businesses } from './businesses.schema';
 import {
   subscriptionInvoices,
   subscriptionPaymentAttempts,
@@ -17,6 +18,9 @@ export const nombaCheckoutOrders = pgTable(
   'nomba_checkout_orders',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -44,6 +48,7 @@ export const nombaCheckoutOrders = pgTable(
       .defaultNow(),
   },
   (table) => [
+    index('nomba_checkout_orders_business_id_idx').on(table.businessId),
     index('nomba_checkout_orders_user_id_idx').on(table.userId),
     index('nomba_checkout_orders_reference_idx').on(table.orderReference),
   ],
@@ -53,6 +58,9 @@ export const nombaWebhookEvents = pgTable(
   'nomba_webhook_events',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id').references(() => businesses.id, {
+      onDelete: 'set null',
+    }),
     eventType: varchar('event_type', { length: 120 }).notNull(),
     signature: varchar('signature', { length: 512 }),
     eventReference: varchar('event_reference', { length: 160 }),
@@ -64,6 +72,7 @@ export const nombaWebhookEvents = pgTable(
       .defaultNow(),
   },
   (table) => [
+    index('nomba_webhook_events_business_id_idx').on(table.businessId),
     index('nomba_webhook_events_type_idx').on(table.eventType),
     index('nomba_webhook_events_order_reference_idx').on(table.orderReference),
   ],

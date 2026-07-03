@@ -8,7 +8,7 @@ type RawBodyRequest = Request & {
   rawBody?: Buffer;
 };
 
-@Controller('nomba/webhooks')
+@Controller('/webhook')
 export class NombaWebhookController {
   constructor(
     private readonly nombaWebhookService: NombaWebhookService,
@@ -31,8 +31,16 @@ export class NombaWebhookController {
       this.toSafeString(payload.type) ??
       'unknown';
     const orderReference = this.extractOrderReference(payload);
+    const checkoutOrder = orderReference
+      ? await this.billingRepository.findCheckoutOrderByReference(
+          orderReference,
+        )
+      : undefined;
 
-    await this.billingRepository.createWebhookEvent({
+    const webhookEvent = {
+      ...(checkoutOrder?.businessId
+        ? { businessId: checkoutOrder.businessId }
+        : {}),
       eventType,
       signature,
       eventReference:
@@ -41,7 +49,9 @@ export class NombaWebhookController {
         '',
       orderReference,
       payload,
-    });
+    };
+
+    await this.billingRepository.createWebhookEvent(webhookEvent);
 
     if (orderReference) {
       await this.billingService.verifyCheckoutOrder(orderReference);

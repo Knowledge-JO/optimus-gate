@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 
 export function useTableState<T extends { id: string }, F extends string>({
   data,
@@ -57,10 +57,6 @@ export function useTableState<T extends { id: string }, F extends string>({
     (safePage - 1) * pageSize,
     safePage * pageSize,
   );
-
-  useEffect(() => {
-    setPage(1);
-  }, [filter, query]);
 
   const selectableRows = pageRows.filter(isRowSelectable);
   const allOnPageSelected =

@@ -64,7 +64,7 @@ export function DataTable<T extends { id: string }>({
             {columns.map((col) => (
               <TableHead
                 key={col.id}
-                className="text-slate-400 text-[11px] font-semibold font-Inter tracking-widest"
+                className="text-slate-400 text-[11px] font-semibold tracking-widest"
               >
                 {col.header}
               </TableHead>

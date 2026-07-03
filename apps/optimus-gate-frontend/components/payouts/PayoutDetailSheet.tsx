@@ -9,24 +9,27 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { CopyButton } from "@/components/layout/CopyButton";
 import { moneyCell, formatDate } from "@/components/layout/cells";
-import { MOCK_PAYOUTS } from "@/lib/payout-data";
-import { MOCK_PAYOUT_DETAILS } from "@/lib/payout-detail-data";
+import type { Payout, PayoutDetail } from "./type";
 
 export function PayoutDetailSheet({
+  details = {},
   payoutId,
+  payouts = [],
   open,
   onOpenChange,
   onRetry,
 }: {
+  details?: Record<string, PayoutDetail>;
   payoutId: string | null;
+  payouts?: Payout[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRetry?: (payoutId: string) => void;
 }) {
   const payout = payoutId
-    ? MOCK_PAYOUTS.find((p) => p.payoutId === payoutId)
+    ? payouts.find((p) => p.payoutId === payoutId)
     : null;
-  const detail = payoutId ? MOCK_PAYOUT_DETAILS[payoutId] : null;
+  const detail = payoutId ? details[payoutId] : null;
   const grossAmount = detail
     ? detail.lineItems.reduce((sum, i) => sum + i.amount, 0)
     : 0;

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { BusinessesService } from '../businesses/businesses.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { UpdateApiKeyDto } from './dto/update-api-key.dto';
 import { ApiKeysRepository } from './api-keys.repository';
@@ -12,16 +13,23 @@ import { AuthenticatedApiKey } from './api-keys.types';
 
 @Injectable()
 export class ApiKeysService {
-  constructor(private readonly apiKeysRepository: ApiKeysRepository) {}
+  constructor(
+    private readonly apiKeysRepository: ApiKeysRepository,
+    private readonly businessesService: BusinessesService,
+  ) {}
 
   async create(userId: string, dto: CreateApiKeyDto) {
+    const business =
+      await this.businessesService.getDefaultBusinessForUser(userId);
     const environment = dto.environment ?? 'test';
     const secret = randomBytes(32).toString('base64url');
     const prefix = `og_${environment}_${secret.slice(0, 8)}`;
     const rawKey = `${prefix}_${secret}`;
     const keyHash = await bcrypt.hash(rawKey, 12);
     const apiKey = await this.apiKeysRepository.create({
+      businessId: business.id,
       userId,
+      createdByUserId: userId,
       name: dto.name,
       prefix,
       keyHash,
@@ -36,12 +44,16 @@ export class ApiKeysService {
   }
 
   async list(userId: string) {
-    const apiKeys = await this.apiKeysRepository.listByUser(userId);
+    const business =
+      await this.businessesService.getDefaultBusinessForUser(userId);
+    const apiKeys = await this.apiKeysRepository.listByBusiness(business.id);
     return apiKeys.map((apiKey) => this.toPublicApiKey(apiKey));
   }
 
   async update(userId: string, id: string, dto: UpdateApiKeyDto) {
-    const apiKey = await this.apiKeysRepository.update(userId, id, dto);
+    const business =
+      await this.businessesService.getDefaultBusinessForUser(userId);
+    const apiKey = await this.apiKeysRepository.update(business.id, id, dto);
 
     if (!apiKey) {
       throw new NotFoundException('API key not found');
@@ -51,7 +63,9 @@ export class ApiKeysService {
   }
 
   async revoke(userId: string, id: string) {
-    const apiKey = await this.apiKeysRepository.revoke(userId, id);
+    const business =
+      await this.businessesService.getDefaultBusinessForUser(userId);
+    const apiKey = await this.apiKeysRepository.revoke(business.id, id);
 
     if (!apiKey) {
       throw new NotFoundException('API key not found');
@@ -90,6 +104,8 @@ export class ApiKeysService {
 
   private toPublicApiKey(apiKey: {
     id: string;
+    businessId: string;
+    createdByUserId: string;
     name: string;
     prefix: string;
     environment: string;
@@ -101,6 +117,8 @@ export class ApiKeysService {
   }) {
     return {
       id: apiKey.id,
+      businessId: apiKey.businessId,
+      createdByUserId: apiKey.createdByUserId,
       name: apiKey.name,
       prefix: apiKey.prefix,
       environment: apiKey.environment,

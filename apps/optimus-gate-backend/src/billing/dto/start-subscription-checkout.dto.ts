@@ -2,13 +2,21 @@ import { IsEmail, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class StartSubscriptionCheckoutDto {
   @IsUUID()
-  planId: string;
+  planId!: string;
 
   @IsString()
-  customerId: string;
+  customerId!: string;
 
   @IsEmail()
-  customerEmail: string;
+  customerEmail!: string;
+
+  @IsOptional()
+  @IsString()
+  customerName?: string;
+
+  @IsOptional()
+  @IsString()
+  customerPhone?: string;
 
   @IsOptional()
   @IsString()

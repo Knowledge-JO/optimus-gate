@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import type { SignOptions } from 'jsonwebtoken';
 import { randomBytes, randomUUID } from 'crypto';
+import { BusinessesService } from '../businesses/businesses.service';
 import { DRIZZLE_DB } from '../database/database.constants';
 import {
   passwordResetTokens,
@@ -38,6 +39,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly businessesService: BusinessesService,
     @Inject(DRIZZLE_DB) private readonly db: DrizzleDatabase,
   ) {}
 
@@ -48,6 +50,12 @@ export class AuthService {
       passwordHash,
       firstName: dto.firstName,
       lastName: dto.lastName,
+    });
+    await this.businessesService.createDefaultBusinessForUser({
+      userId: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
     });
 
     return this.issueTokenPair(user, context);

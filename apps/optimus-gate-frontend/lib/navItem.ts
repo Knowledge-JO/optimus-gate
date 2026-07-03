@@ -5,7 +5,7 @@ import { IoSyncOutline } from "react-icons/io5";
 import { GoArrowSwitch } from "react-icons/go";
 import { BsArrowCounterclockwise } from "react-icons/bs";
 import { LuExternalLink } from "react-icons/lu";
-import { LiaCreditCard } from "react-icons/lia";
+// import { LiaCreditCard } from "react-icons/lia";
 import { IoSettingsOutline } from "react-icons/io5";
 import { LuLogOut } from "react-icons/lu";
 
@@ -45,11 +45,11 @@ export const navItem = [
     slug: "payouts",
     icon: LuExternalLink,
   },
-  {
-    name: "Subaccount",
-    slug: "subaccount",
-    icon: LiaCreditCard,
-  },
+  // {
+  //   name: "Subaccount",
+  //   slug: "subaccount",
+  //   icon: LiaCreditCard,
+  // },
 ];
 
 export const bottomNav = [

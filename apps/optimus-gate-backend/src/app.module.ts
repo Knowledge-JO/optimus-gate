@@ -22,6 +22,11 @@ import { BillingModule } from './billing/billing.module';
         NOMBA_CLIENT_ID: Joi.string().optional(),
         NOMBA_CLIENT_SECRET: Joi.string().optional(),
         NOMBA_WEBHOOK_SECRET: Joi.string().optional(),
+        REDIS_URL: Joi.string()
+          .uri({
+            scheme: ['redis', 'rediss'],
+          })
+          .optional(),
         REDIS_HOST: Joi.string().optional(),
         REDIS_PORT: Joi.number().optional(),
       }),

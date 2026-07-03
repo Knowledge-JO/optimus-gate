@@ -8,28 +8,31 @@ import { CreditCard, ChevronRight, XCircle } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { CopyButton } from "@/components/layout/CopyButton";
 import { moneyCell, formatDate } from "@/components/layout/cells";
-import { MOCK_SUBCRIPTION } from "@/lib/subcription_data";
-import { MOCK_SUBSCRIPTION_DETAILS } from "@/lib/subcription-detail-data";
 import { ActionButton } from "../layout/ActionButton";
+import type { Subscription, SubscriptionDetail } from "./type";
 
 const CANCELLABLE_STATUSES = ["Active", "Attention"];
 
 export function SubscriptionDetailSheet({
+  details = [],
   subscriptionId,
+  subscriptions = [],
   open,
   onOpenChange,
   onCancel,
 }: {
+  details?: SubscriptionDetail[];
   subscriptionId: string | null;
+  subscriptions?: Subscription[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCancel?: (subscriptionId: string) => void;
 }) {
   const subscription = subscriptionId
-    ? MOCK_SUBCRIPTION.find((s) => s.id === subscriptionId)
+    ? subscriptions.find((s) => s.id === subscriptionId)
     : null;
   const detail = subscriptionId
-    ? MOCK_SUBSCRIPTION_DETAILS.find((d) => d.id === subscriptionId)
+    ? details.find((d) => d.id === subscriptionId)
     : null;
   const canCancel = subscription
     ? CANCELLABLE_STATUSES.includes(subscription.status)

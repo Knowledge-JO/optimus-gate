@@ -16,8 +16,8 @@ export const nombaProviders = [
         configService.get<string>('NOMBA_BASE_URL') ??
         'https://sandbox.nomba.com',
       accountId: configService.get<string>('NOMBA_ACCOUNT_ID') ?? '',
-      clientId: configService.get<string>('NOMBA_CLIENT_ID') ?? '',
-      clientSecret: configService.get<string>('NOMBA_CLIENT_SECRET') ?? '',
+      clientId: configService.get<string>('TEST_NOMBA_CLIENT_ID') ?? '',
+      clientSecret: configService.get<string>('TEST_NOMBA_PRIVATE_KEY') ?? '',
       webhookSecret: configService.get<string>('NOMBA_WEBHOOK_SECRET') ?? '',
     }),
   },

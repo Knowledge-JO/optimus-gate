@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
-import type { IncomingMessage, ServerResponse } from 'http';
+import type { IncomingMessage } from 'http';
 import { json } from 'express';
 import { AppModule } from './app.module';
 
@@ -12,14 +12,11 @@ type RawBodyIncomingMessage = IncomingMessage & {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(
-    '/nomba/webhooks',
     json({
-      verify: (
-        request: RawBodyIncomingMessage,
-        _response: ServerResponse,
-        buffer,
-      ) => {
-        request.rawBody = Buffer.from(buffer);
+      verify: (request: RawBodyIncomingMessage, _response, buffer) => {
+        if (request.url?.startsWith('/webhook')) {
+          request.rawBody = Buffer.from(buffer);
+        }
       },
     }),
   );
@@ -31,6 +28,6 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 4000);
 }
 void bootstrap();

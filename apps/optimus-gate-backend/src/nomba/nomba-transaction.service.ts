@@ -4,14 +4,20 @@ import { NombaHttpService } from './nomba-http.service';
 export interface NombaTransactionVerificationResponse {
   code: string;
   description?: string;
-  data?: {
-    status?: string;
-    amount?: string;
-    currency?: string;
-    orderReference?: string;
-    tokenKey?: string;
-    [key: string]: unknown;
-  };
+  data?: NombaTransactionVerificationData;
+}
+
+export interface NombaTransactionVerificationData extends Record<
+  string,
+  unknown
+> {
+  status?: string;
+  amount?: string;
+  currency?: string;
+  orderReference?: string;
+  tokenKey?: string;
+  customerId?: string | number;
+  customerEmail?: string;
 }
 
 @Injectable()

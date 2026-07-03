@@ -10,7 +10,9 @@ import {
 } from './api-keys.types';
 
 interface CreateApiKeyRecordInput {
+  businessId: string;
   userId: string;
+  createdByUserId: string;
   name: string;
   prefix: string;
   keyHash: string;
@@ -51,17 +53,17 @@ export class ApiKeysRepository {
       : undefined;
   }
 
-  async listByUser(userId: string): Promise<ApiKeyRecord[]> {
+  async listByBusiness(businessId: string): Promise<ApiKeyRecord[]> {
     const rows = await this.db
       .select()
       .from(apiKeys)
-      .where(eq(apiKeys.userId, userId));
+      .where(eq(apiKeys.businessId, businessId));
 
     return rows.map((apiKey) => this.toRecord(apiKey));
   }
 
   async update(
-    userId: string,
+    businessId: string,
     id: string,
     input: UpdateApiKeyRecordInput,
   ): Promise<ApiKeyRecord | undefined> {
@@ -71,20 +73,23 @@ export class ApiKeysRepository {
         ...input,
         updatedAt: new Date(),
       })
-      .where(and(eq(apiKeys.userId, userId), eq(apiKeys.id, id)))
+      .where(and(eq(apiKeys.businessId, businessId), eq(apiKeys.id, id)))
       .returning();
 
     return apiKey ? this.toRecord(apiKey) : undefined;
   }
 
-  async revoke(userId: string, id: string): Promise<ApiKeyRecord | undefined> {
+  async revoke(
+    businessId: string,
+    id: string,
+  ): Promise<ApiKeyRecord | undefined> {
     const [apiKey] = await this.db
       .update(apiKeys)
       .set({
         revokedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(and(eq(apiKeys.userId, userId), eq(apiKeys.id, id)))
+      .where(and(eq(apiKeys.businessId, businessId), eq(apiKeys.id, id)))
       .returning();
 
     return apiKey ? this.toRecord(apiKey) : undefined;
@@ -103,7 +108,8 @@ export class ApiKeysRepository {
   toAuthenticated(apiKey: ApiKeyRecord): AuthenticatedApiKey {
     return {
       id: apiKey.id,
-      userId: apiKey.userId,
+      businessId: apiKey.businessId,
+      createdByUserId: apiKey.createdByUserId,
       environment: apiKey.environment,
       scopes: apiKey.scopes,
     };
@@ -112,7 +118,8 @@ export class ApiKeysRepository {
   private toRecord(apiKey: typeof apiKeys.$inferSelect): ApiKeyRecord {
     return {
       id: apiKey.id,
-      userId: apiKey.userId,
+      businessId: apiKey.businessId,
+      createdByUserId: apiKey.createdByUserId,
       name: apiKey.name,
       prefix: apiKey.prefix,
       environment: apiKey.environment,

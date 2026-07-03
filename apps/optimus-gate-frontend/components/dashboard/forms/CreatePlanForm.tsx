@@ -33,12 +33,27 @@ export function CreatePlanForm() {
         </p>
       )}
       <FieldError errors={state.fieldErrors?.name} />
-      <Input name="name" placeholder="Plan name" />
-      <Textarea name="description" placeholder="Short plan description" rows={3} />
+      <Input name="name" placeholder="Plan name" className="w-full" />
+      <Textarea
+        name="description"
+        placeholder="Short plan description"
+        rows={3}
+        className="w-full min-w-0"
+      />
       <FieldError errors={state.fieldErrors?.amount} />
-      <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(5.5rem,0.7fr)_minmax(0,1fr)_minmax(8.5rem,1fr)]">
-        <Input name="currency" defaultValue="NGN" placeholder="Currency" />
-        <Input name="amount" placeholder="Amount e.g. 25000" inputMode="numeric" />
+      <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(5.5rem,0.7fr)_minmax(0,1fr)_minmax(8.5rem,1fr)]">
+        <Input
+          name="currency"
+          defaultValue="NGN"
+          placeholder="Currency"
+          className="w-full"
+        />
+        <Input
+          name="amount"
+          placeholder="Amount e.g. 25000"
+          inputMode="numeric"
+          className="w-full"
+        />
         <Select name="interval" defaultValue="month">
           <SelectTrigger className="w-full min-w-0">
             <SelectValue placeholder="Interval" />

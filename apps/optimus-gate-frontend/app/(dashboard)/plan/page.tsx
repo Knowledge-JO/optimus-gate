@@ -96,6 +96,7 @@ async function PlansTable() {
     <Surface
       title="Plan catalog"
       description="Fetched from the backend /billing/plans endpoint."
+      className="min-w-0"
     >
       <PlanCatalog plans={plans} />
     </Surface>

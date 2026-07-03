@@ -6,11 +6,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import PageHeader from "@/components/layout/PageHeader";
 
 export default function Header() {
   return (
-    <div className="flex items-center justify-between">
-      <h1 className="text-2xl font-extrabold text-navy">Payouts</h1>
+    <PageHeader title="Payouts">
       <Select>
         <SelectTrigger className="bg-navy text-white data-placeholder:text-white rounded-lg px-4 py-4 h-10 text-xs font-semibold gap-2 shadow-sm hover:shadow-md transition-shadow duration-200 focus:ring-0 focus-visible:ring-0">
           <SelectValue placeholder="Request payout" />
@@ -22,6 +22,6 @@ export default function Header() {
           </SelectGroup>
         </SelectContent>
       </Select>
-    </div>
+    </PageHeader>
   );
 }

@@ -2,6 +2,7 @@
 
 import { FaPlus } from "react-icons/fa6";
 import { ActionButton } from "../layout/ActionButton";
+import PageHeader from "../layout/PageHeader";
 import {
   Dialog,
   DialogContent,
@@ -13,27 +14,24 @@ import PlanForm from "../forms/PlanForm";
 
 export default function Header() {
   return (
-    <div className="flex items-center justify-between">
-      <h1 className="text-2xl font-extrabold text-navy">Plan</h1>
-      <div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <ActionButton icon={FaPlus}>Add Plan</ActionButton>
-          </DialogTrigger>
-          <DialogContent className=" w-full sm:max-w-180 p-8">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-extrabold">
-                New Plan
-              </DialogTitle>
-            </DialogHeader>
-            <PlanForm
-              onSubmit={(values) => console.log("submitted:", values)}
-              onCancel={() => console.log("cancelled")}
-              isSubmitting={false}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
-    </div>
+    <PageHeader title="Plan">
+      <Dialog>
+        <DialogTrigger asChild>
+          <ActionButton icon={FaPlus}>Add Plan</ActionButton>
+        </DialogTrigger>
+        <DialogContent className="w-full sm:max-w-180 p-8">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-extrabold">
+              New Plan
+            </DialogTitle>
+          </DialogHeader>
+          <PlanForm
+            onSubmit={(values) => console.log("submitted:", values)}
+            onCancel={() => console.log("cancelled")}
+            isSubmitting={false}
+          />
+        </DialogContent>
+      </Dialog>
+    </PageHeader>
   );
 }

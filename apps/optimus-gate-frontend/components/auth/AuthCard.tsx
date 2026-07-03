@@ -22,9 +22,9 @@ export function AuthCard({
     <div className="w-full max-w-md rounded-lg border bg-white p-6 shadow-sm sm:p-8">
       <div className="mb-7 space-y-2">
         <Link href="/" className="flex items-center gap-2 lg:hidden">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-black text-xs font-bold text-white">
+          {/* <div className="flex size-9 items-center justify-center rounded-lg bg-black text-xs font-bold text-white">
             OG
-          </div>
+          </div> */}
           <span className="text-sm font-semibold text-slate-900">
             Optimus Gate
           </span>

@@ -48,7 +48,9 @@ export function AppSidebar({ user }: { user: AuthUser }) {
                 Optimus Gate
               </span>
               <span className="text-[11px] text-zinc-400">
-                {user.email}
+                {user.email.length > 20
+                  ? user.email.slice(0, 20) + "..."
+                  : user.email}
               </span>
             </div>
           )}
@@ -67,7 +69,8 @@ export function AppSidebar({ user }: { user: AuthUser }) {
                       asChild
                       className={cn(
                         "h-10 rounded-lg px-3 text-sm font-normal text-zinc-400 transition-colors hover:bg-white/10 hover:text-white",
-                        isActive && "bg-white font-medium text-black hover:bg-white hover:text-black",
+                        isActive &&
+                          "bg-white font-medium text-black hover:bg-white hover:text-black",
                       )}
                     >
                       <Link href={`/${item.slug}`}>

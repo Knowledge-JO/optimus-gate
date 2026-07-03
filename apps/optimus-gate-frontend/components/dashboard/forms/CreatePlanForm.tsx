@@ -20,7 +20,7 @@ export function CreatePlanForm() {
   const [state, formAction] = useActionState(createPlanAction, initialState);
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form action={formAction} className="min-w-0 space-y-3">
       {state.message && (
         <p
           className={`rounded-lg border px-3 py-2 text-sm ${
@@ -36,11 +36,11 @@ export function CreatePlanForm() {
       <Input name="name" placeholder="Plan name" />
       <Textarea name="description" placeholder="Short plan description" rows={3} />
       <FieldError errors={state.fieldErrors?.amount} />
-      <div className="grid gap-3 sm:grid-cols-[0.8fr_1fr_1fr]">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(5.5rem,0.7fr)_minmax(0,1fr)_minmax(8.5rem,1fr)]">
         <Input name="currency" defaultValue="NGN" placeholder="Currency" />
         <Input name="amount" placeholder="Amount e.g. 25000" inputMode="numeric" />
         <Select name="interval" defaultValue="month">
-          <SelectTrigger>
+          <SelectTrigger className="w-full min-w-0">
             <SelectValue placeholder="Interval" />
           </SelectTrigger>
           <SelectContent>

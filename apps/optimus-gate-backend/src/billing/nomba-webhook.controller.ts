@@ -22,6 +22,10 @@ export class NombaWebhookController {
     @Body() payload: Record<string, unknown>,
     @Headers('nomba-signature') signature?: string,
   ) {
+    console.log(
+      'Received Nomba webhook payload:',
+      JSON.stringify(payload, null, 2),
+    );
     this.nombaWebhookService.verifySignature(
       request.rawBody ?? Buffer.from(JSON.stringify(payload)),
       signature,

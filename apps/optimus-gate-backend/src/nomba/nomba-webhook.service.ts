@@ -8,6 +8,7 @@ export class NombaWebhookService {
 
   verifySignature(rawBody: Buffer, signature?: string) {
     if (!this.config.webhookSecret || !signature) {
+      console.log('Of course webhook was not verified');
       throw new UnauthorizedException('Invalid Nomba webhook signature');
     }
 
@@ -21,6 +22,7 @@ export class NombaWebhookService {
       expectedBuffer.length !== signatureBuffer.length ||
       !timingSafeEqual(expectedBuffer, signatureBuffer)
     ) {
+      console.log('of course Webhook signature is invalid');
       throw new UnauthorizedException('Invalid Nomba webhook signature');
     }
   }

@@ -211,19 +211,6 @@ export async function reconcileCheckoutOrdersAction(
   };
 }
 
-export async function refreshDashboardAction() {
-  revalidateTag(apiTags.stats, "max");
-  revalidateTag(apiTags.plans, "max");
-  revalidateTag(apiTags.subscribers, "max");
-  revalidateTag(apiTags.subscriptions, "max");
-  revalidateTag(apiTags.apiKeys, "max");
-  revalidateTag(apiTags.transactions, "max");
-  revalidateTag(apiTags.refunds, "max");
-  revalidateTag(apiTags.payouts, "max");
-  revalidateTag(apiTags.subaccounts, "max");
-  revalidateTag(apiTags.onboarding, "max");
-}
-
 function validationError(
   fieldErrors: Record<string, string[] | undefined>,
 ): MutationState {

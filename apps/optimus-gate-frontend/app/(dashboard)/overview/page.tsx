@@ -8,14 +8,10 @@ import {
 import { Suspense } from "react";
 import { AnimatedGrid } from "@/components/dashboard/AnimatedPage";
 import { BrandBars } from "@/components/dashboard/BrandBars";
-import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { MetricCard } from "@/components/dashboard/MetricCard";
-import {
-  OperationsTable,
-  StatusCell,
-  type OperationsColumn,
-} from "@/components/dashboard/OperationsTable";
+import { StatusCell } from "@/components/dashboard/OperationsTable";
 import { PageShell } from "@/components/dashboard/PageShell";
+import { LatestMoneyMovementTable } from "@/components/dashboard/RecordTables";
 import { MetricsSkeleton, SurfaceSkeleton } from "@/components/dashboard/Skeletons";
 import { Surface } from "@/components/dashboard/Surface";
 import {
@@ -23,7 +19,6 @@ import {
   getSubscriptions,
   getTransactions,
 } from "@/lib/api/dashboard";
-import type { TransactionRecord } from "@/lib/api/types";
 import { formatNaira } from "@/lib/format";
 
 export const metadata = {
@@ -37,10 +32,6 @@ export default function Home() {
       title="Revenue, renewals, and settlement at a glance"
       description="Monitor recurring billing health, ledger liquidity, checkout attempts, and settlement pressure from one command surface."
     >
-      <div className="flex justify-end">
-        <DashboardRefreshButton />
-      </div>
-
       <Suspense fallback={<MetricsSkeleton />}>
         <OverviewMetrics />
       </Suspense>
@@ -147,26 +138,6 @@ async function RenewalQueue() {
 
 async function LatestMoneyMovement() {
   const transactions = await getTransactions();
-  const columns: OperationsColumn<TransactionRecord>[] = [
-    {
-      key: "reference",
-      header: "Reference",
-      render: (row) => <span className="font-mono text-black">{row.reference}</span>,
-    },
-    { key: "customer", header: "Customer" },
-    { key: "type", header: "Type" },
-    {
-      key: "amount",
-      header: "Amount",
-      align: "right",
-      render: (row) => <span className="font-black">{formatNaira(row.amount)}</span>,
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (row) => <StatusCell status={row.status} />,
-    },
-  ];
 
   return (
     <Surface
@@ -174,9 +145,8 @@ async function LatestMoneyMovement() {
       description="Recent checkout orders, renewals, and payment attempts."
       action={<Banknote className="size-4 text-zinc-500" />}
     >
-      <OperationsTable
+      <LatestMoneyMovementTable
         rows={transactions}
-        columns={columns}
         emptyTitle="No money movement yet"
         emptyDescription="Backend payment attempts and transactions will appear here."
       />

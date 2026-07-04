@@ -2,16 +2,11 @@ import { AlertTriangle, CalendarClock, Repeat2, RotateCcw } from "lucide-react";
 import { Suspense } from "react";
 import { AnimatedGrid } from "@/components/dashboard/AnimatedPage";
 import { MetricCard } from "@/components/dashboard/MetricCard";
-import {
-  OperationsTable,
-  StatusCell,
-  type OperationsColumn,
-} from "@/components/dashboard/OperationsTable";
 import { PageShell } from "@/components/dashboard/PageShell";
+import { SubscriptionsRecordTable } from "@/components/dashboard/RecordTables";
 import { MetricsSkeleton, SurfaceSkeleton } from "@/components/dashboard/Skeletons";
 import { Surface } from "@/components/dashboard/Surface";
 import { getSubscriptions } from "@/lib/api/dashboard";
-import type { SubscriptionRecord } from "@/lib/api/types";
 import { formatNaira } from "@/lib/format";
 
 export const metadata = {
@@ -56,38 +51,11 @@ async function SubscriptionMetrics() {
 
 async function SubscriptionTable() {
   const subscriptions = await getSubscriptions();
-  const columns: OperationsColumn<SubscriptionRecord>[] = [
-    {
-      key: "code",
-      header: "Code",
-      render: (row) => <span className="font-mono text-black">{row.code}</span>,
-    },
-    { key: "customer", header: "Customer" },
-    { key: "plan", header: "Plan" },
-    {
-      key: "amount",
-      header: "Amount",
-      align: "right",
-      render: (row) => <span className="font-black">{formatNaira(row.amount)}</span>,
-    },
-    { key: "nextCharge", header: "Next charge" },
-    {
-      key: "attempts",
-      header: "Attempts",
-      align: "right",
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (row) => <StatusCell status={row.status} />,
-    },
-  ];
 
   return (
     <Surface title="Subscription ledger" description="Fetched from the backend /billing/subscriptions endpoint.">
-      <OperationsTable
+      <SubscriptionsRecordTable
         rows={subscriptions}
-        columns={columns}
         emptyTitle="No subscriptions yet"
         emptyDescription="Subscription rows will appear after backend checkout starts."
       />

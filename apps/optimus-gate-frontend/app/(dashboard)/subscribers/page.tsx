@@ -1,6 +1,5 @@
 import {
   CreditCard,
-  Plus,
   ShieldCheck,
   UserRoundCheck,
   Users,
@@ -8,12 +7,8 @@ import {
 import { Suspense } from "react";
 import { AnimatedGrid } from "@/components/dashboard/AnimatedPage";
 import { MetricCard } from "@/components/dashboard/MetricCard";
-import {
-  OperationsTable,
-  StatusCell,
-  type OperationsColumn,
-} from "@/components/dashboard/OperationsTable";
 import { PageShell } from "@/components/dashboard/PageShell";
+import { SubscribersRecordTable } from "@/components/dashboard/RecordTables";
 import {
   MetricsSkeleton,
   SurfaceSkeleton,
@@ -21,8 +16,6 @@ import {
 import { Surface } from "@/components/dashboard/Surface";
 // import { Button } from "@/components/ui/button";
 import { getSubscribers } from "@/lib/api/dashboard";
-import type { SubscriberRecord } from "@/lib/api/types";
-import { formatNaira } from "@/lib/format";
 
 export const metadata = {
   title: "Subscribers",
@@ -92,34 +85,14 @@ async function SubscriberMetrics() {
 
 async function SubscriberTable() {
   const subscribers = await getSubscribers();
-  const columns: OperationsColumn<SubscriberRecord>[] = [
-    { key: "name", header: "Customer" },
-    { key: "email", header: "Email" },
-    { key: "plan", header: "Plan" },
-    { key: "paymentMethod", header: "Payment method" },
-    {
-      key: "lifetimeValue",
-      header: "Lifetime value",
-      align: "right",
-      render: (row) => (
-        <span className="font-black">{formatNaira(row.lifetimeValue)}</span>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (row) => <StatusCell status={row.status} />,
-    },
-  ];
 
   return (
     <Surface
       title="Customer records"
       description="Fetched from the backend /billing/subscribers endpoint."
     >
-      <OperationsTable
+      <SubscribersRecordTable
         rows={subscribers}
-        columns={columns}
         emptyTitle="No subscribers yet"
         emptyDescription="Backend customer records will appear here after checkout activity."
       />

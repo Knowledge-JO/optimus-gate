@@ -1,7 +1,7 @@
 {
   "name": "optimus-gate",
   "private": true,
-  "packageManager": "npm@11.13.0",
+  "packageManager": "npm@11.12.1",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -20,7 +20,7 @@
   "devEngines": {
     "packageManager": {
       "name": "npm",
-      "version": ">=11.13.0 <12",
+      "version": ">=11.12.1 <12",
       "onFail": "error"
     }
   },

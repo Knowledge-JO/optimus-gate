@@ -21,7 +21,7 @@ export function OperationsTable<T extends { id: string }>({
   rows: T[];
 }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="w-full max-w-full overflow-x-auto">
       <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-black/10 bg-[#fbfaf7] text-left">

@@ -19,7 +19,7 @@ export function CreateApiKeyForm() {
   const [state, formAction] = useActionState(createApiKeyAction, initialState);
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form action={formAction} className="w-full min-w-0 space-y-3">
       {state.message && (
         <div
           className={`rounded-lg border px-3 py-2 text-sm ${
@@ -38,9 +38,9 @@ export function CreateApiKeyForm() {
       )}
       <FieldError errors={state.fieldErrors?.name} />
       <Input name="name" placeholder="Key name e.g. Checkout production" />
-      <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(9rem,0.7fr)_minmax(0,1.3fr)]">
         <Select name="environment" defaultValue="test">
-          <SelectTrigger>
+          <SelectTrigger className="w-full min-w-0">
             <SelectValue placeholder="Environment" />
           </SelectTrigger>
           <SelectContent>

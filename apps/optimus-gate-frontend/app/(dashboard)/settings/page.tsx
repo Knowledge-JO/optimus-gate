@@ -29,7 +29,7 @@ export default function SettingsPage() {
         <SettingsMetrics />
       </Suspense>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_0.6fr]">
+      <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(24rem,28rem)]">
         <Suspense fallback={<SurfaceSkeleton />}>
           <ApiKeysTable />
         </Suspense>
@@ -37,6 +37,7 @@ export default function SettingsPage() {
         <Surface
           title="Create API key"
           description="Calls the backend /api-keys endpoint with your current session."
+          className="min-w-0"
         >
           <div className="p-4">
             <CreateApiKeyForm />
@@ -96,7 +97,11 @@ async function ApiKeysTable() {
   ];
 
   return (
-    <Surface title="API keys" description="Fetched from the backend /api-keys endpoint.">
+    <Surface
+      title="API keys"
+      description="Fetched from the backend /api-keys endpoint."
+      className="min-w-0"
+    >
       <OperationsTable
         rows={keys}
         columns={columns}

@@ -8,6 +8,7 @@ import {
 import { Suspense } from "react";
 import { AnimatedGrid } from "@/components/dashboard/AnimatedPage";
 import { BrandBars } from "@/components/dashboard/BrandBars";
+import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import {
   OperationsTable,
@@ -36,6 +37,10 @@ export default function Home() {
       title="Revenue, renewals, and settlement at a glance"
       description="Monitor recurring billing health, ledger liquidity, checkout attempts, and settlement pressure from one command surface."
     >
+      <div className="flex justify-end">
+        <DashboardRefreshButton />
+      </div>
+
       <Suspense fallback={<MetricsSkeleton />}>
         <OverviewMetrics />
       </Suspense>

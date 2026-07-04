@@ -9,7 +9,10 @@ import {
   type OperationsColumn,
 } from "@/components/dashboard/OperationsTable";
 import { PageShell } from "@/components/dashboard/PageShell";
-import { MetricsSkeleton, SurfaceSkeleton } from "@/components/dashboard/Skeletons";
+import {
+  MetricsSkeleton,
+  SurfaceSkeleton,
+} from "@/components/dashboard/Skeletons";
 import { Surface } from "@/components/dashboard/Surface";
 import { getApiKeys } from "@/lib/api/dashboard";
 import type { ApiKeyRecord } from "@/lib/api/types";
@@ -29,7 +32,7 @@ export default function SettingsPage() {
         <SettingsMetrics />
       </Suspense>
 
-      <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(24rem,28rem)]">
+      <div className="grid min-w-0 gap-4 items-start xl:grid-cols-[minmax(0,1fr)_minmax(24rem,28rem)]">
         <Suspense fallback={<SurfaceSkeleton />}>
           <ApiKeysTable />
         </Suspense>
@@ -51,14 +54,36 @@ export default function SettingsPage() {
 async function SettingsMetrics() {
   const keys = await getApiKeys();
   const active = keys.filter((key) => !key.revokedAt);
-  const live = keys.filter((key) => key.environment === "live" && !key.revokedAt);
+  const live = keys.filter(
+    (key) => key.environment === "live" && !key.revokedAt,
+  );
 
   return (
     <AnimatedGrid>
-      <MetricCard icon={KeyRound} label="API keys" value={`${keys.length}`} tone="black" />
-      <MetricCard icon={ShieldCheck} label="Active keys" value={`${active.length}`} tone="green" />
-      <MetricCard icon={LockKeyhole} label="Live keys" value={`${live.length}`} tone="blue" />
-      <MetricCard icon={RadioTower} label="Revoked keys" value={`${keys.length - active.length}`} tone="amber" />
+      <MetricCard
+        icon={KeyRound}
+        label="API keys"
+        value={`${keys.length}`}
+        tone="black"
+      />
+      <MetricCard
+        icon={ShieldCheck}
+        label="Active keys"
+        value={`${active.length}`}
+        tone="green"
+      />
+      <MetricCard
+        icon={LockKeyhole}
+        label="Live keys"
+        value={`${live.length}`}
+        tone="blue"
+      />
+      <MetricCard
+        icon={RadioTower}
+        label="Revoked keys"
+        value={`${keys.length - active.length}`}
+        tone="amber"
+      />
     </AnimatedGrid>
   );
 }
@@ -70,7 +95,9 @@ async function ApiKeysTable() {
     {
       key: "prefix",
       header: "Prefix",
-      render: (row) => <span className="font-mono text-black">{row.prefix}</span>,
+      render: (row) => (
+        <span className="font-mono text-black">{row.prefix}</span>
+      ),
     },
     {
       key: "environment",
@@ -92,7 +119,9 @@ async function ApiKeysTable() {
     {
       key: "revokedAt",
       header: "Status",
-      render: (row) => <StatusCell status={row.revokedAt ? "revoked" : "active"} />,
+      render: (row) => (
+        <StatusCell status={row.revokedAt ? "revoked" : "active"} />
+      ),
     },
   ];
 

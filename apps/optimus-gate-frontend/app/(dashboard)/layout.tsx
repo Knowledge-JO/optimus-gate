@@ -17,7 +17,7 @@ export default async function DashboardLayout({
     <SidebarProvider
       style={{ "--sidebar-width": "14rem" } as React.CSSProperties}
     >
-      <div className="flex h-screen w-full overflow-hidden">
+      <div className="flex w-full overflow-hidden">
         <AppSidebar user={user} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header user={user} />

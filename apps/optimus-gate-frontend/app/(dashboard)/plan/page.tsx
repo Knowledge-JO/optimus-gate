@@ -34,7 +34,7 @@ export default function Plan() {
       <Suspense fallback={<MetricsSkeleton />}>
         <PlanMetrics />
       </Suspense>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,24rem)]">
+      <div className="grid min-w-0 gap-4 items-start xl:grid-cols-[minmax(0,1fr)_minmax(22rem,24rem)]">
         <Suspense fallback={<SurfaceSkeleton />}>
           <PlansTable />
         </Suspense>

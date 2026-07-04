@@ -7,4 +7,5 @@ export interface NombaConfig {
   clientId: string;
   clientSecret: string;
   webhookSecret: string;
+  subAccountId: string;
 }

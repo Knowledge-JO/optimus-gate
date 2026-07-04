@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { NombaHttpService } from './nomba-http.service';
+import { NOMBA_CONFIG, type NombaConfig } from './nomba.constants';
 
 export interface CreateNombaCheckoutOrderInput {
   orderReference: string;
@@ -34,7 +35,10 @@ export interface ChargeTokenizedCardInput {
 
 @Injectable()
 export class NombaCheckoutService {
-  constructor(private readonly nombaHttpService: NombaHttpService) {}
+  constructor(
+    private readonly nombaHttpService: NombaHttpService,
+    @Inject(NOMBA_CONFIG) private readonly config: NombaConfig,
+  ) {}
 
   createCheckoutOrder(input: CreateNombaCheckoutOrderInput) {
     return this.nombaHttpService.post<NombaCheckoutOrderResponse>(
@@ -49,6 +53,7 @@ export class NombaCheckoutService {
           callbackUrl: input.callbackUrl,
           tokenizeCard: input.tokenizeCard ?? true,
           metadata: input.metadata,
+          accountId: this.config.subAccountId,
         },
       },
     );
@@ -65,6 +70,7 @@ export class NombaCheckoutService {
           amount: input.amount,
           currency: input.currency,
           callbackUrl: input.callbackUrl,
+          accountId: this.config.subAccountId,
         },
         tokenKey: input.tokenKey,
       },

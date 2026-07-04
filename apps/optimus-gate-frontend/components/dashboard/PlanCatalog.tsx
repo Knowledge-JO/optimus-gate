@@ -1,9 +1,14 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { ExternalLink, Link2 } from "lucide-react";
-import { createCheckoutLinkAction, type MutationState } from "@/lib/api/actions";
+import { ExternalLink, Link2, RefreshCcw } from "lucide-react";
+import {
+  createCheckoutLinkAction,
+  reconcileCheckoutOrdersAction,
+  type MutationState,
+  type ReconcileCheckoutOrdersState,
+} from "@/lib/api/actions";
 import type { PlanRecord } from "@/lib/api/types";
 import { formatNaira } from "@/lib/format";
 import { CopyButton } from "@/components/layout/CopyButton";
@@ -25,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const initialState: MutationState = { status: "idle" };
+const initialReconcileState: ReconcileCheckoutOrdersState = { status: "idle" };
 
 export function PlanCatalog({ plans }: { plans: PlanRecord[] }) {
   const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null);
@@ -213,6 +219,18 @@ function CheckoutLinkPanel({
   checkoutLink: string;
   orderReference?: string;
 }) {
+  const [reconcileState, setReconcileState] = useState(initialReconcileState);
+  const [isReconciling, startReconcileTransition] = useTransition();
+
+  function handleReconcile() {
+    if (!orderReference) return;
+
+    startReconcileTransition(async () => {
+      const result = await reconcileCheckoutOrdersAction([orderReference]);
+      setReconcileState(result);
+    });
+  }
+
   return (
     <div className="min-w-0 rounded-lg border border-black/10 bg-white p-3">
       <div className="mb-3 flex items-center gap-2">
@@ -243,12 +261,36 @@ function CheckoutLinkPanel({
         </p>
       )}
 
-      <Button asChild className="mt-3 h-9 w-full bg-black text-white hover:bg-zinc-900">
-        <a href={checkoutLink} target="_blank" rel="noreferrer">
-          <ExternalLink className="size-4" />
-          Open checkout
-        </a>
-      </Button>
+      {reconcileState.message && (
+        <p
+          className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+            reconcileState.status === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
+          {reconcileState.message}
+        </p>
+      )}
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <Button asChild className="h-9 w-full bg-black text-white hover:bg-zinc-900">
+          <a href={checkoutLink} target="_blank" rel="noreferrer">
+            <ExternalLink className="size-4" />
+            Open checkout
+          </a>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!orderReference || isReconciling}
+          onClick={handleReconcile}
+          className="h-9 w-full border-black/10 bg-white text-black hover:bg-zinc-100"
+        >
+          <RefreshCcw className={`size-4 ${isReconciling ? "animate-spin" : ""}`} />
+          {isReconciling ? "Reconciling..." : "Reconcile"}
+        </Button>
+      </div>
     </div>
   );
 }

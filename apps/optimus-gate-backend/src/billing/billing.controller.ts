@@ -13,6 +13,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types';
 import { BillingService } from './billing.service';
 import { StartSubscriptionCheckoutDto } from './dto/start-subscription-checkout.dto';
+import { VerifyCheckoutOrdersDto } from './dto/verify-checkout-orders.dto';
 import { ApiKeyOrJwtAuthGuard } from './guards/api-key-or-jwt-auth.guard';
 
 @UseGuards(ApiKeyOrJwtAuthGuard)
@@ -40,5 +41,10 @@ export class BillingController {
   @Get('checkout/orders/:orderReference')
   verifyCheckoutOrder(@Param('orderReference') orderReference: string) {
     return this.billingService.verifyCheckoutOrder(orderReference);
+  }
+
+  @Post('checkout/orders/verify')
+  verifyCheckoutOrders(@Body() dto: VerifyCheckoutOrdersDto) {
+    return this.billingService.verifyCheckoutOrders(dto.orderReferences);
   }
 }

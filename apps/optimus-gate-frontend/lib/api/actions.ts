@@ -15,6 +15,11 @@ export type MutationState = {
   fieldErrors?: Record<string, string[]>;
 };
 
+export type ReconcileCheckoutOrdersState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+};
+
 const createPlanSchema = z.object({
   name: z.string().min(2, "Plan name must be at least 2 characters"),
   description: z.string().optional(),
@@ -36,6 +41,10 @@ const createCheckoutLinkSchema = z.object({
   customerId: z.string().optional(),
   callbackUrl: z.string().url("Callback URL must be valid").optional().or(z.literal("")),
 });
+
+const reconcileCheckoutOrdersSchema = z
+  .array(z.string().trim().min(1))
+  .min(1, "At least one order reference is required");
 
 export async function createPlanAction(
   _state: MutationState,
@@ -148,6 +157,57 @@ export async function createCheckoutLinkAction(
     checkoutLink: result.data.checkoutLink,
     orderReference: result.data.orderReference,
     message: "Checkout link created.",
+  };
+}
+
+export async function reconcileCheckoutOrdersAction(
+  orderReferences: string[],
+): Promise<ReconcileCheckoutOrdersState> {
+  const parsed = reconcileCheckoutOrdersSchema.safeParse(orderReferences);
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Order reference is required.",
+    };
+  }
+
+  const result = await backendMutation<Array<{ status?: string }>>(
+    "/v1/checkout/orders/verify",
+    {
+      method: "POST",
+      body: {
+        orderReferences: parsed.data,
+      },
+    },
+  );
+
+  if (!result.ok) {
+    return {
+      status: "error",
+      message: result.error.message,
+    };
+  }
+
+  revalidateTag(apiTags.stats, "max");
+  revalidateTag(apiTags.plans, "max");
+  revalidateTag(apiTags.subscribers, "max");
+  revalidateTag(apiTags.subscriptions, "max");
+  revalidateTag(apiTags.transactions, "max");
+
+  const succeeded = result.data.filter((entry) => entry.status === "succeeded").length;
+  const failed = result.data.length - succeeded;
+
+  if (failed > 0) {
+    return {
+      status: "error",
+      message: `${failed} checkout order${failed === 1 ? "" : "s"} could not be verified.`,
+    };
+  }
+
+  return {
+    status: "success",
+    message: `${succeeded} checkout order${succeeded === 1 ? "" : "s"} reconciled.`,
   };
 }
 

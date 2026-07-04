@@ -547,6 +547,15 @@ export class BillingService {
     return { status: 'succeeded', verification };
   }
 
+  verifyCheckoutOrders(orderReferences: string[]) {
+    return Promise.all(
+      orderReferences.map(async (orderReference) => ({
+        orderReference,
+        ...(await this.verifyCheckoutOrder(orderReference)),
+      })),
+    );
+  }
+
   async enqueueDueRenewals() {
     const dueSubscriptions = await this.billingRepository.findDueSubscriptions(
       new Date(Date.now() + 60 * 60 * 1000),

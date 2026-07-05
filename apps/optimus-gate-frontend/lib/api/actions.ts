@@ -22,7 +22,7 @@ export type ReconcileCheckoutOrdersState = {
 
 const createPlanSchema = z.object({
   name: z.string().min(2, "Plan name must be at least 2 characters"),
-  description: z.string().optional(),
+  description: z.string().max(200, "Description must be 200 characters or less").optional(),
   amount: z.string().min(1, "Amount is required"),
   currency: z.string().default("NGN"),
   interval: z.enum(["day", "week", "month", "year"]),

@@ -2,7 +2,17 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { ExternalLink, Link2, RefreshCcw } from "lucide-react";
+import {
+  CreditCard,
+  ExternalLink,
+  Hash,
+  Link2,
+  Mail,
+  RefreshCcw,
+  TrendingUp,
+  User,
+  Users,
+} from "lucide-react";
 import {
   createCheckoutLinkAction,
   reconcileCheckoutOrdersAction,
@@ -22,7 +32,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -45,7 +54,9 @@ export function PlanCatalog({ plans }: { plans: PlanRecord[] }) {
       key: "amount",
       header: "Amount",
       align: "right",
-      render: (row) => <span className="font-black">{formatNaira(row.amount)}</span>,
+      render: (row) => (
+        <span className="font-black">{formatNaira(row.amount)}</span>
+      ),
     },
     { key: "interval", header: "Interval" },
     {
@@ -98,32 +109,45 @@ function PlanDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-hidden p-0 sm:max-w-xl lg:max-w-2xl">
-        <div className="border-b border-black/10 px-4 py-4 sm:px-5">
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:max-w-xl lg:max-w-2xl">
+        <div className="shrink-0 border-b border-black/10 px-3 py-3 sm:px-5 sm:py-4">
           <DialogHeader>
-            <DialogTitle className="break-words pr-8 text-xl font-black leading-tight text-black">
-              {plan.name}
-            </DialogTitle>
-            <DialogDescription className="break-words pr-8 text-xs">
-              {plan.description || "Subscription plan details and checkout link creation."}
-            </DialogDescription>
+            <div className="flex items-start gap-2.5 pr-8">
+              <div className="min-w-0">
+                <DialogTitle className="wrap-break-words text-lg font-black leading-tight text-black sm:text-xl">
+                  {plan.name}
+                </DialogTitle>
+                <DialogDescription className="mt-1 wrap-break-words text-xs">
+                  {plan.description ||
+                    "Subscription plan details and checkout link creation."}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
         </div>
 
-        <div className="grid max-h-[calc(100dvh-9rem)] min-w-0 gap-4 overflow-y-auto p-4 sm:p-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <PlanSummary plan={plan} />
+        <div className="grid min-h-0 min-w-0 flex-1 gap-4 overflow-y-auto p-3 sm:gap-0 sm:p-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="lg:pr-6 lg:shadow-[inset_-24px_0_16px_-27px_rgba(0,0,0,0.1)]">
+            <PlanSummary plan={plan} />
+          </div>
 
-          {state.checkoutLink ? (
-            <CheckoutLinkPanel
-              checkoutLink={state.checkoutLink}
-              orderReference={state.orderReference}
-            />
-          ) : (
-            <CheckoutLinkForm formAction={formAction} state={state} plan={plan} />
-          )}
+          <div className="lg:pl-5">
+            {state.checkoutLink ? (
+              <CheckoutLinkPanel
+                checkoutLink={state.checkoutLink}
+                orderReference={state.orderReference}
+              />
+            ) : (
+              <CheckoutLinkForm
+                formAction={formAction}
+                state={state}
+                plan={plan}
+              />
+            )}
+          </div>
         </div>
 
-        <DialogFooter showCloseButton />
+        {/* <DialogFooter showCloseButton /> */}
       </DialogContent>
     </Dialog>
   );
@@ -131,25 +155,57 @@ function PlanDetailsDialog({
 
 function PlanSummary({ plan }: { plan: PlanRecord }) {
   return (
-    <div className="min-w-0 rounded-lg border border-black/10 bg-[#fbfaf7] p-3">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">
-            Plan summary
-          </p>
-          <p className="mt-1 truncate text-sm font-black text-black">
-            {formatNaira(plan.amount)} / {plan.interval}
-          </p>
-        </div>
-        <StatusCell status={plan.status} />
+    <div className="min-w-0">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">
+          Plan summary
+        </p>
+        <PlanStatusPill status={plan.status} />
       </div>
-      <div className="space-y-1.5">
-        <Detail label="Plan code" value={plan.code} />
-        <Detail label="Currency" value={plan.currency ?? "NGN"} />
-        <Detail label="Subscriptions" value={plan.subscriptions.toLocaleString()} />
-        <Detail label="Revenue" value={formatNaira(plan.revenue)} />
+
+      <div className="mb-3">
+        <p className="wrap-break-words text-2xl font-black leading-tight text-black">
+          {formatNaira(plan.amount)}
+        </p>
+        <p className="mt-0.5 text-xs text-zinc-500">per {plan.interval}</p>
+      </div>
+
+      <div className="space-y-1.5 border-t border-black/10 pt-3">
+        <Detail
+          icon={<Hash className="size-3.5" />}
+          label="Plan code"
+          value={plan.code}
+        />
+        <Detail
+          icon={<CreditCard className="size-3.5" />}
+          label="Currency"
+          value={plan.currency ?? "NGN"}
+        />
+        <Detail
+          icon={<Users className="size-3.5" />}
+          label="Subscriptions"
+          value={plan.subscriptions.toLocaleString()}
+        />
+        <Detail
+          icon={<TrendingUp className="size-3.5" />}
+          label="Revenue"
+          value={formatNaira(plan.revenue)}
+        />
       </div>
     </div>
+  );
+}
+
+function PlanStatusPill({ status }: { status: string }) {
+  const isActive = status.toLowerCase() === "active";
+  return (
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
+        isActive ? "bg-emerald-500 text-white" : "bg-zinc-200 text-zinc-600"
+      }`}
+    >
+      {status}
+    </span>
   );
 }
 
@@ -163,52 +219,90 @@ function CheckoutLinkForm({
   state: MutationState;
 }) {
   return (
-    <form action={formAction} className="min-w-0 space-y-3">
-      <input type="hidden" name="planId" value={plan.id} />
-      {state.message && (
-        <p
-          className={`rounded-lg border px-3 py-2 text-sm ${
-            state.status === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-red-200 bg-red-50 text-red-700"
-          }`}
-        >
-          {state.message}
-        </p>
-      )}
-      <div className="grid gap-2">
-        <Label htmlFor="customerEmail">Customer email</Label>
-        <Input
-          id="customerEmail"
-          name="customerEmail"
-          type="email"
-          placeholder="customer@example.com"
-        />
-        <FieldError errors={state.fieldErrors?.customerEmail} />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="customerName">Customer name</Label>
-        <Input id="customerName" name="customerName" placeholder="Ada Lovelace" />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="customerId">Customer ID</Label>
-        <Input
-          id="customerId"
-          name="customerId"
-          placeholder="Optional external customer id"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="callbackUrl">Callback URL</Label>
-        <Input
-          id="callbackUrl"
-          name="callbackUrl"
-          placeholder="https://example.com/billing/callback"
-        />
-        <FieldError errors={state.fieldErrors?.callbackUrl} />
-      </div>
-      <CheckoutSubmitButton />
-    </form>
+    <div className="min-w-0">
+      <p className="mb-3 text-xs uppercase tracking-[0.14em] text-zinc-500">
+        Customer details
+      </p>
+      <form action={formAction} className="min-w-0 space-y-3">
+        <input type="hidden" name="planId" value={plan.id} />
+        {state.message && (
+          <p
+            className={`rounded-lg border px-3 py-2 text-sm ${
+              state.status === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            {state.message}
+          </p>
+        )}
+        <div className="grid gap-2">
+          <Label htmlFor="customerEmail">Email</Label>
+          <IconInput icon={<Mail className="size-4" />}>
+            <Input
+              id="customerEmail"
+              name="customerEmail"
+              type="email"
+              placeholder="customer@example.com"
+              className="border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0"
+            />
+          </IconInput>
+          <FieldError errors={state.fieldErrors?.customerEmail} />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="customerName">Name</Label>
+          <IconInput icon={<User className="size-4" />}>
+            <Input
+              id="customerName"
+              name="customerName"
+              placeholder="Ada Lovelace"
+              className="border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0"
+            />
+          </IconInput>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="customerId">Customer ID</Label>
+          <IconInput icon={<Hash className="size-4" />}>
+            <Input
+              id="customerId"
+              name="customerId"
+              placeholder="Optional external ID"
+              className="border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0"
+            />
+          </IconInput>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="callbackUrl">Callback URL</Label>
+          <IconInput icon={<Link2 className="size-4" />}>
+            <Input
+              id="callbackUrl"
+              name="callbackUrl"
+              placeholder="https://example.com/billing/callback"
+              className="border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0"
+            />
+          </IconInput>
+          <FieldError errors={state.fieldErrors?.callbackUrl} />
+        </div>
+        <CheckoutSubmitButton />
+      </form>
+    </div>
+  );
+}
+
+function IconInput({
+  children,
+  icon,
+}: {
+  children: React.ReactNode;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="relative flex items-center rounded-lg border border-black/10 bg-zinc-50">
+      <span className="pointer-events-none absolute left-3 flex items-center text-zinc-400">
+        {icon}
+      </span>
+      {children}
+    </div>
   );
 }
 
@@ -239,7 +333,9 @@ function CheckoutLinkPanel({
         </div>
         <div className="min-w-0">
           <p className="text-sm font-black text-black">Checkout link</p>
-          <p className="text-xs text-zinc-500">Ready to share with the customer.</p>
+          <p className="text-xs text-zinc-500">
+            Ready to share with the customer.
+          </p>
         </div>
       </div>
 
@@ -274,7 +370,10 @@ function CheckoutLinkPanel({
       )}
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <Button asChild className="h-9 w-full bg-black text-white hover:bg-zinc-900">
+        <Button
+          asChild
+          className="h-9 w-full bg-black text-white hover:bg-zinc-900"
+        >
           <a href={checkoutLink} target="_blank" rel="noreferrer">
             <ExternalLink className="size-4" />
             Open checkout
@@ -287,7 +386,9 @@ function CheckoutLinkPanel({
           onClick={handleReconcile}
           className="h-9 w-full border-black/10 bg-white text-black hover:bg-zinc-100"
         >
-          <RefreshCcw className={`size-4 ${isReconciling ? "animate-spin" : ""}`} />
+          <RefreshCcw
+            className={`size-4 ${isReconciling ? "animate-spin" : ""}`}
+          />
           {isReconciling ? "Reconciling..." : "Reconcile"}
         </Button>
       </div>
@@ -295,13 +396,22 @@ function CheckoutLinkPanel({
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({
+  icon,
+  label,
+  value,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)] items-center gap-3 rounded-md bg-white/70 px-2.5 py-2">
-      <span className="min-w-0 text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-md px-2.5 py-2">
+      <span className="flex min-w-0 items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+        {icon}
         {label}
       </span>
-      <span className="min-w-0 truncate text-right text-xs font-black text-black">
+      <span className="min-w-0 truncate text-xs font-black text-black">
         {value}
       </span>
     </div>
@@ -317,7 +427,8 @@ function CheckoutSubmitButton() {
       disabled={pending}
       className="w-full bg-black text-white hover:bg-zinc-900"
     >
-      {pending ? "Creating checkout..." : "Create checkout link"}
+      <Link2 className="size-4" />
+      {pending ? "Creating Checkout..." : "Create Checkout Link"}
     </Button>
   );
 }

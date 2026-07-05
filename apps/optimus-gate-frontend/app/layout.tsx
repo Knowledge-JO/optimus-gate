@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
 import NextTopLoader from "nextjs-toploader";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistMono = Geist_Mono({
@@ -29,6 +30,7 @@ export default function RootLayout({
       >
         <NextTopLoader color="#000000" height={3} showSpinner={false} />
         {children}
+        <Toaster />
       </body>
     </html>
   );

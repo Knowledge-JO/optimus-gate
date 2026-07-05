@@ -69,11 +69,11 @@ export function RecordDetailsDialog({
       <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-hidden p-0 sm:max-w-xl">
         <div className="border-b border-black/10 px-4 py-4 sm:px-5">
           <DialogHeader>
-            <DialogTitle className="break-words pr-8 text-xl font-black leading-tight text-black">
+            <DialogTitle className="wrap-break-words pr-8 text-xl font-black leading-tight text-black">
               {title}
             </DialogTitle>
             {description && (
-              <DialogDescription className="break-words pr-8 text-xs">
+              <DialogDescription className="wrap-break-words pr-8 text-xs">
                 {description}
               </DialogDescription>
             )}
@@ -98,7 +98,7 @@ export function RecordDetailsDialog({
                   {field.label}
                 </span>
                 <span className="flex min-w-0 items-center gap-2 text-sm font-black text-black sm:justify-end sm:text-right">
-                  <span className="min-w-0 break-words">{field.value}</span>
+                  <span className="min-w-0 wrap-break-words">{field.value}</span>
                   {field.copyValue && <CopyButton value={field.copyValue} />}
                 </span>
               </div>

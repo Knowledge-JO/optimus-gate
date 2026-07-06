@@ -37,7 +37,11 @@ export function CreatePlanForm() {
         </p>
       )}
       <FieldError errors={state.fieldErrors?.name} />
-      <Input name="name" placeholder="Plan name" className="w-full" />
+      <Input
+        name="name"
+        placeholder="Plan name"
+        className="w-full text-xs placeholder:text-xs sm:text-sm sm:placeholder:text-sm"
+      />
 
       <div className="space-y-1">
         <Textarea
@@ -49,7 +53,7 @@ export function CreatePlanForm() {
           onChange={(e) =>
             setDescription(e.target.value.slice(0, DESCRIPTION_MAX))
           }
-          className="w-full min-w-0"
+          className="w-full min-w-0 text-xs placeholder:text-xs sm:text-sm sm:placeholder:text-sm"
         />
         <p
           className={`text-right text-xs ${
@@ -68,13 +72,13 @@ export function CreatePlanForm() {
           name="currency"
           defaultValue="NGN"
           placeholder="Currency"
-          className="w-full"
+          className="w-full text-xs placeholder:text-xs sm:text-sm sm:placeholder:text-sm"
         />
         <Input
           name="amount"
           placeholder="Amount e.g. 25000"
           inputMode="numeric"
-          className="w-full"
+          className="w-full text-xs placeholder:text-xs sm:text-sm sm:placeholder:text-sm"
         />
         <Select name="interval" defaultValue="month">
           <SelectTrigger className="w-full min-w-0">

@@ -22,7 +22,7 @@ export function OperationsTable<T extends { id: string }>({
 }) {
   return (
     <div className="w-full max-w-full overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse text-sm">
+      <table className="w-full min-w-190 border-collapse text-sm">
         <thead>
           <tr className="border-b border-black/10 bg-[#fbfaf7] text-left">
             {columns.map((column) => (

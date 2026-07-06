@@ -20,9 +20,40 @@ export type RecordDetailField = {
   label: string;
   value: React.ReactNode;
   copyValue?: string;
+  fullWidth?: boolean;
 };
 
+type DetailBlock =
+  | { kind: "single"; field: RecordDetailField }
+  | { kind: "group"; fields: RecordDetailField[] };
+
+function buildDetailBlocks(fields: RecordDetailField[]): DetailBlock[] {
+  const blocks: DetailBlock[] = [];
+  let currentGroup: RecordDetailField[] = [];
+
+  const flushGroup = () => {
+    if (currentGroup.length > 0) {
+      blocks.push({ kind: "group", fields: currentGroup });
+      currentGroup = [];
+    }
+  };
+
+  for (const field of fields) {
+    const isFullWidth = field.fullWidth ?? Boolean(field.copyValue);
+    if (isFullWidth) {
+      flushGroup();
+      blocks.push({ kind: "single", field });
+    } else {
+      currentGroup.push(field);
+    }
+  }
+  flushGroup();
+
+  return blocks;
+}
+
 export function RecordDetailsDialog({
+  amount,
   canReconcile,
   description,
   fields,
@@ -30,8 +61,11 @@ export function RecordDetailsDialog({
   open,
   reconcileReference,
   status,
-  title,
 }: {
+  amount?: {
+    value: React.ReactNode;
+    crossedOut?: boolean;
+  };
   canReconcile: boolean;
   description?: string;
   fields: RecordDetailField[];
@@ -68,41 +102,81 @@ export function RecordDetailsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-hidden p-0 sm:max-w-xl">
         <div className="border-b border-black/10 px-4 py-4 sm:px-5">
-          <DialogHeader>
-            <DialogTitle className="wrap-break-words pr-8 text-xl font-black leading-tight text-black">
-              {title}
+          <DialogHeader className="flex-row items-start justify-between space-y-0">
+            <DialogTitle className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              Payment Details
             </DialogTitle>
-            {description && (
-              <DialogDescription className="wrap-break-words pr-8 text-xs">
-                {description}
-              </DialogDescription>
-            )}
           </DialogHeader>
+        </div>
 
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-xs uppercase tracking-[0.16em] text-zinc-500">
-              Status
-            </span>
+        <div>
+          {amount && (
+            <p
+              className={`mt-4 text-center text-3xl font-black text-black sm:text-4xl ${
+                amount.crossedOut ? "line-through decoration-2" : ""
+              }`}
+            >
+              {amount.value}
+            </p>
+          )}
+          {description && (
+            <DialogDescription className="wrap-break-words mt-1 text-center text-xs">
+              {description}
+            </DialogDescription>
+          )}
+
+          <div className="mt-3 flex justify-center">
             <StatusCell status={status} />
           </div>
         </div>
-
         <div className="max-h-[calc(100dvh-14rem)] overflow-y-auto p-4 sm:p-5">
-          <div className="grid gap-2">
-            {fields.map((field) => (
-              <div
-                key={field.label}
-                className="grid min-w-0 gap-1 rounded-lg border border-black/10 bg-[#fbfaf7] px-3 py-2.5 sm:grid-cols-[minmax(0,0.45fr)_minmax(0,0.55fr)] sm:items-center"
-              >
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                  {field.label}
-                </span>
-                <span className="flex min-w-0 items-center gap-2 text-sm font-black text-black sm:justify-end sm:text-right">
-                  <span className="min-w-0 wrap-break-words">{field.value}</span>
-                  {field.copyValue && <CopyButton value={field.copyValue} />}
-                </span>
-              </div>
-            ))}
+          <div className="flex flex-col gap-2">
+            {buildDetailBlocks(fields).map((block, blockIndex) => {
+              if (block.kind === "single") {
+                const field = block.field;
+                return (
+                  <div
+                    key={field.label}
+                    className="flex min-w-0 flex-col gap-1 rounded-lg border border-black/10 bg-gray-50/50 px-3 py-2.5"
+                  >
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                      {field.label}
+                    </span>
+                    <span className="flex min-w-0 items-center gap-2 text-sm font-black text-black">
+                      <span className="min-w-0 wrap-break-words">
+                        {field.value}
+                      </span>
+                      {field.copyValue && (
+                        <CopyButton value={field.copyValue} />
+                      )}
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={`group-${blockIndex}`}
+                  className="grid grid-cols-2 overflow-hidden rounded-lg border border-black/10 bg-gray-50/50 "
+                >
+                  {block.fields.map((field, fieldIndex) => (
+                    <div
+                      key={field.label}
+                      className={`flex min-w-0 flex-col gap-1 px-3 py-2.5 ${
+                        fieldIndex % 2 === 1 ? "border-l border-black/10" : ""
+                      } ${fieldIndex >= 2 ? "border-t border-black/10" : ""}`}
+                    >
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                        {field.label}
+                      </span>
+                      <span className="text-sm font-black text-black wrap-break-words">
+                        {field.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
 
           {message && (
@@ -124,7 +198,7 @@ export function RecordDetailsDialog({
               type="button"
               disabled={!reconcileReference || isReconciling}
               onClick={handleReconcile}
-              className="w-full bg-black text-white hover:bg-zinc-900 sm:w-auto"
+              className="w-full bg-black text-white hover:bg-zinc-900 sm:w-auto mb-1"
             >
               <RefreshCcw
                 className={`size-4 ${isReconciling ? "animate-spin" : ""}`}

@@ -16,11 +16,13 @@ import {
   RecordDetailsDialog,
   type RecordDetailField,
 } from "./RecordDetailsDialog";
+import { PendingSelectCell } from "@/components/dashboard/PendingSelectCell";
 
 type InteractiveTableProps<T extends { id: string; status: string }> = {
   columns: OperationsColumn<T>[];
   emptyDescription: string;
   emptyTitle: string;
+  getAmount?: (row: T) => { value: React.ReactNode; crossedOut?: boolean };
   getDescription?: (row: T) => string;
   getDetails: (row: T) => RecordDetailField[];
   getReconcileReference: (row: T) => string;
@@ -32,6 +34,7 @@ function InteractiveRecordsTable<T extends { id: string; status: string }>({
   columns,
   emptyDescription,
   emptyTitle,
+  getAmount,
   getDescription,
   getDetails,
   getReconcileReference,
@@ -60,6 +63,7 @@ function InteractiveRecordsTable<T extends { id: string; status: string }>({
           title={getTitle(selectedRow)}
           description={getDescription?.(selectedRow)}
           status={selectedRow.status}
+          amount={getAmount?.(selectedRow)}
           fields={getDetails(selectedRow)}
           canReconcile={canReconcile}
           reconcileReference={getReconcileReference(selectedRow)}
@@ -73,7 +77,9 @@ const transactionColumns: OperationsColumn<TransactionRecord>[] = [
   {
     key: "reference",
     header: "Reference",
-    render: (row) => <span className="font-mono text-black">{row.reference}</span>,
+    render: (row) => (
+      <span className="font-mono text-black">{row.reference}</span>
+    ),
   },
   { key: "customer", header: "Customer" },
   { key: "type", header: "Type" },
@@ -82,7 +88,9 @@ const transactionColumns: OperationsColumn<TransactionRecord>[] = [
     key: "amount",
     header: "Amount",
     align: "right",
-    render: (row) => <span className="font-black">{formatNaira(row.amount)}</span>,
+    render: (row) => (
+      <span className="font-black">{formatNaira(row.amount)}</span>
+    ),
   },
   { key: "date", header: "Date" },
   {
@@ -92,7 +100,16 @@ const transactionColumns: OperationsColumn<TransactionRecord>[] = [
   },
 ];
 
+const pendingSelectColumn: OperationsColumn<TransactionRecord> = {
+  key: "select",
+  header: "",
+  render: (row) => (
+    <PendingSelectCell reference={row.reference} status={row.status} />
+  ),
+};
+
 const latestMoneyMovementColumns: OperationsColumn<TransactionRecord>[] = [
+  pendingSelectColumn,
   transactionColumns[0],
   { key: "customer", header: "Customer" },
   { key: "type", header: "Type" },
@@ -118,6 +135,7 @@ export function LatestMoneyMovementTable({
       getTitle={(row) => row.reference}
       getDescription={(row) => `${row.type} payment for ${row.customer}`}
       getReconcileReference={(row) => row.reference}
+      getAmount={(row) => ({ value: formatNaira(row.amount) })}
       getDetails={transactionDetails}
     />
   );
@@ -141,6 +159,7 @@ export function TransactionsRecordTable({
       getTitle={(row) => row.reference}
       getDescription={(row) => `${row.type} payment via ${row.provider}`}
       getReconcileReference={(row) => row.reference}
+      getAmount={(row) => ({ value: formatNaira(row.amount) })}
       getDetails={transactionDetails}
     />
   );
@@ -167,7 +186,9 @@ export function SubscriptionsRecordTable({
       key: "amount",
       header: "Amount",
       align: "right",
-      render: (row) => <span className="font-black">{formatNaira(row.amount)}</span>,
+      render: (row) => (
+        <span className="font-black">{formatNaira(row.amount)}</span>
+      ),
     },
     { key: "nextCharge", header: "Next charge" },
     { key: "attempts", header: "Attempts", align: "right" },
@@ -252,13 +273,12 @@ export function SubscribersRecordTable({
 
 function transactionDetails(row: TransactionRecord): RecordDetailField[] {
   return [
-    detail("Reference", row.reference, row.reference),
     detail("Customer", row.customer),
     detail("Type", row.type),
     detail("Provider", row.provider),
-    detail("Amount", formatNaira(row.amount)),
     detail("Date", row.date),
     detail("Transaction ID", row.id, row.id),
+    detail("Reference", row.reference, row.reference),
   ];
 }
 

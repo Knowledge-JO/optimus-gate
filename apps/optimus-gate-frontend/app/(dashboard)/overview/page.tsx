@@ -12,7 +12,12 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { StatusCell } from "@/components/dashboard/OperationsTable";
 import { PageShell } from "@/components/dashboard/PageShell";
 import { LatestMoneyMovementTable } from "@/components/dashboard/RecordTables";
-import { MetricsSkeleton, SurfaceSkeleton } from "@/components/dashboard/Skeletons";
+import { ReconcileSelectionProvider } from "@/components/dashboard/reconcile-selection-context";
+import { ReconcileHeaderActions } from "@/components/dashboard/ReconcileHeaderActions";
+import {
+  MetricsSkeleton,
+  SurfaceSkeleton,
+} from "@/components/dashboard/Skeletons";
 import { Surface } from "@/components/dashboard/Surface";
 import {
   getDashboardMetrics,
@@ -60,14 +65,38 @@ async function OverviewMetrics() {
     <AnimatedGrid>
       {metrics.length ? (
         metrics.map((metric, index) => (
-          <MetricCard key={metric.label} icon={icons[index] ?? Activity} {...metric} />
+          <MetricCard
+            key={metric.label}
+            icon={icons[index] ?? Activity}
+            {...metric}
+          />
         ))
       ) : (
         <>
-          <MetricCard icon={Repeat2} label="Subscriptions" value="0" tone="black" />
-          <MetricCard icon={Wallet} label="Available balance" value={formatNaira(0)} tone="green" />
-          <MetricCard icon={AlertTriangle} label="Past due" value={formatNaira(0)} tone="amber" />
-          <MetricCard icon={Activity} label="Success rate" value="0%" tone="blue" />
+          <MetricCard
+            icon={Repeat2}
+            label="Subscriptions"
+            value="0"
+            tone="black"
+          />
+          <MetricCard
+            icon={Wallet}
+            label="Available balance"
+            value={formatNaira(0)}
+            tone="green"
+          />
+          <MetricCard
+            icon={AlertTriangle}
+            label="Past due"
+            value={formatNaira(0)}
+            tone="amber"
+          />
+          <MetricCard
+            icon={Activity}
+            label="Success rate"
+            value="0%"
+            tone="blue"
+          />
         </>
       )}
     </AnimatedGrid>
@@ -94,7 +123,9 @@ async function RevenuePulse() {
         <BrandBars values={revenueSeries} />
         <div className="mt-4 flex items-center justify-between text-xs text-zinc-500">
           <span>First record</span>
-          <span className="font-mono text-black">{formatNaira(totalVolume)} volume</span>
+          <span className="font-mono text-black">
+            {formatNaira(totalVolume)} volume
+          </span>
           <span>Latest record</span>
         </div>
       </div>
@@ -111,7 +142,10 @@ async function RenewalQueue() {
       <div className="divide-y divide-black/10">
         {nextSubscriptions.length ? (
           nextSubscriptions.map((subscription) => (
-            <div key={subscription.id} className="flex items-center justify-between gap-3 px-4 py-3">
+            <div
+              key={subscription.id}
+              className="flex items-center justify-between gap-3 px-4 py-3"
+            >
               <div>
                 <p className="text-sm font-black text-black">
                   {subscription.customer}
@@ -138,18 +172,28 @@ async function RenewalQueue() {
 
 async function LatestMoneyMovement() {
   const transactions = await getTransactions();
+  const pendingReferences = transactions
+    .filter((t) => t.status.toLowerCase() === "pending")
+    .map((t) => t.reference);
 
   return (
-    <Surface
-      title="Latest money movement"
-      description="Recent checkout orders, renewals, and payment attempts."
-      action={<Banknote className="size-4 text-zinc-500" />}
-    >
-      <LatestMoneyMovementTable
-        rows={transactions}
-        emptyTitle="No money movement yet"
-        emptyDescription="Backend payment attempts and transactions will appear here."
-      />
-    </Surface>
+    <ReconcileSelectionProvider>
+      <Surface
+        title="Latest money movement"
+        description="Recent checkout orders, renewals, and payment attempts."
+        action={
+          <div className="flex items-center gap-3">
+            <ReconcileHeaderActions pendingReferences={pendingReferences} />
+            <Banknote className="size-4 text-zinc-500" />
+          </div>
+        }
+      >
+        <LatestMoneyMovementTable
+          rows={transactions}
+          emptyTitle="No money movement yet"
+          emptyDescription="Backend payment attempts and transactions will appear here."
+        />
+      </Surface>
+    </ReconcileSelectionProvider>
   );
 }

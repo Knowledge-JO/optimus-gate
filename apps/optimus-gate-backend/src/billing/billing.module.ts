@@ -5,6 +5,8 @@ import { BusinessesModule } from '../businesses/businesses.module';
 import { DatabaseModule } from '../database/database.module';
 import { LedgerModule } from '../ledger/ledger.module';
 import { NombaModule } from '../nomba/nomba.module';
+import { PayoutsRepository } from '../payouts/payouts.repository';
+import { PayoutsService } from '../payouts/payouts.service';
 import { QueuesModule } from '../queues/queues.module';
 import { UsersModule } from '../users/users.module';
 import { BillingController } from './billing.controller';
@@ -37,6 +39,8 @@ import { RenewalProcessor } from './processors/renewal.processor';
     BillingService,
     BillingScheduler,
     ApiKeyOrJwtAuthGuard,
+    PayoutsRepository,
+    PayoutsService,
     RenewalProcessor,
   ],
 })

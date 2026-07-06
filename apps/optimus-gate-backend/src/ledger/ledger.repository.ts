@@ -63,4 +63,16 @@ export class LedgerRepository {
       where: eq(ledgerEntries.idempotencyKey, input.idempotencyKey),
     });
   }
+
+  listEntriesForBusiness(businessId: string, currency = 'NGN') {
+    return this.db
+      .select()
+      .from(ledgerEntries)
+      .where(
+        and(
+          eq(ledgerEntries.businessId, businessId),
+          eq(ledgerEntries.currency, currency),
+        ),
+      );
+  }
 }

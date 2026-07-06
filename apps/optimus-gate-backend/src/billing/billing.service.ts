@@ -11,13 +11,16 @@ import type { AuthenticatedApiKey } from '../api-keys/api-keys.types';
 import { BusinessesService } from '../businesses/businesses.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { NombaCheckoutService } from '../nomba/nomba-checkout.service';
+import { NombaRefundService } from '../nomba/nomba-refund.service';
 import {
   NombaTransactionService,
   type NombaTransactionVerificationData,
 } from '../nomba/nomba-transaction.service';
 import { RENEWAL_QUEUE } from '../queues/queues.constants';
 import { BillingRepository } from './billing.repository';
+import { CancelSubscriptionDto } from './dto/cancel-subscription.dto';
 import { CreatePlanDto } from './dto/create-plan.dto';
+import { CreateRefundDto } from './dto/create-refund.dto';
 import { StartSubscriptionCheckoutDto } from './dto/start-subscription-checkout.dto';
 
 @Injectable()
@@ -28,6 +31,7 @@ export class BillingService {
     private readonly businessesService: BusinessesService,
     private readonly ledgerService: LedgerService,
     private readonly nombaCheckoutService: NombaCheckoutService,
+    private readonly nombaRefundService: NombaRefundService,
     private readonly nombaTransactionService: NombaTransactionService,
     @InjectQueue(RENEWAL_QUEUE) private readonly renewalQueue: Queue,
   ) {}
@@ -172,6 +176,8 @@ export class BillingService {
         amount: this.toNumber(plan?.amount),
         nextCharge:
           subscription.currentPeriodEnd?.toISOString() ?? 'Not scheduled',
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        canceledAt: subscription.canceledAt?.toISOString() ?? null,
         attempts: attempts.length,
         status: subscription.status,
       };
@@ -210,24 +216,32 @@ export class BillingService {
   async listDashboardRefunds(userId: string) {
     const data = await this.getDashboardDataset(userId);
 
-    return data.ledgerEntries
-      .filter((entry) =>
-        ['refund_debit', 'reversal_debit'].includes(entry.type),
-      )
-      .map((entry) => {
-        const metadata = this.toRecord(entry.metadata);
+    return data.refunds.map((refund) => {
+      const attempt = data.paymentAttempts.find(
+        (item) => item.id === refund.paymentAttemptId,
+      );
+      const subscription = data.subscriptions.find(
+        (item) => item.id === refund.subscriptionId,
+      );
+      const customer = subscription
+        ? data.customers.find(
+            (item) => item.id === subscription.businessCustomerId,
+          )
+        : undefined;
 
-        return {
-          id: entry.id,
-          reference: entry.idempotencyKey,
-          transaction: this.toSafeString(entry.sourceId),
-          customer:
-            this.toSafeString(metadata.customerEmail) || 'Unknown customer',
-          reason: entry.description ?? entry.type,
-          amount: this.toNumber(entry.amount),
-          status: entry.type === 'reversal_debit' ? 'reversed' : 'completed',
-        };
-      });
+      return {
+        id: refund.id,
+        reference: refund.providerReference,
+        transaction: refund.originalTransactionId,
+        paymentReference: attempt?.providerReference,
+        customer:
+          customer?.name ?? subscription?.customerEmail ?? 'Unknown customer',
+        reason: refund.reason ?? 'Refund',
+        amount: this.toNumber(refund.amount),
+        currency: refund.currency,
+        status: refund.status,
+      };
+    });
   }
 
   async listDashboardPayouts(userId: string) {
@@ -315,6 +329,263 @@ export class BillingService {
     });
 
     return plan;
+  }
+
+  async createRefund(userId: string, dto: CreateRefundDto) {
+    const business =
+      await this.businessesService.getDefaultBusinessForUser(userId);
+    const currency = (dto.currency ?? 'NGN').toUpperCase();
+
+    if (currency !== 'NGN') {
+      throw new BadRequestException('Only NGN refunds are supported');
+    }
+
+    if (!dto.paymentAttemptId && !dto.providerReference) {
+      throw new BadRequestException(
+        'Provide either paymentAttemptId or providerReference',
+      );
+    }
+
+    if (
+      (dto.accountNumber && !dto.bankCode) ||
+      (!dto.accountNumber && dto.bankCode)
+    ) {
+      throw new BadRequestException(
+        'Provide both accountNumber and bankCode for transfer refunds',
+      );
+    }
+
+    const attempt = dto.paymentAttemptId
+      ? await this.billingRepository.findPaymentAttemptForBusiness(
+          business.id,
+          dto.paymentAttemptId,
+        )
+      : await this.billingRepository.findPaymentAttemptByReferenceForBusiness(
+          business.id,
+          this.toSafeString(dto.providerReference),
+        );
+
+    if (!attempt) {
+      throw new NotFoundException('Payment attempt not found');
+    }
+
+    if (attempt.status !== 'succeeded') {
+      throw new BadRequestException('Only successful payments can be refunded');
+    }
+
+    if (attempt.currency !== currency) {
+      throw new BadRequestException('Refund currency must match payment');
+    }
+
+    const invoice = await this.billingRepository.findInvoiceById(
+      attempt.invoiceId,
+    );
+
+    if (!invoice || invoice.status !== 'paid') {
+      throw new BadRequestException('Only paid invoices can be refunded');
+    }
+
+    const verification =
+      await this.nombaTransactionService.verifyByOrderReference(
+        attempt.providerReference,
+      );
+
+    if (verification.code !== '00' || verification.data?.status !== 'SUCCESS') {
+      throw new BadRequestException(
+        verification.description ?? 'Original payment could not be verified',
+      );
+    }
+
+    const priorRefunds =
+      await this.billingRepository.listRefundsForPaymentAttempt(
+        business.id,
+        attempt.id,
+      );
+    const committedRefundAmount = priorRefunds
+      .filter((refund) => refund.status !== 'failed')
+      .reduce((sum, refund) => sum + this.toNumber(refund.amount), 0);
+    const originalAmount = this.toNumber(attempt.amount);
+    const remainingAmount = this.roundAmount(
+      originalAmount - committedRefundAmount,
+    );
+    const requestedAmount = dto.amount
+      ? this.parsePositiveAmount(dto.amount)
+      : remainingAmount;
+
+    if (remainingAmount <= 0) {
+      throw new BadRequestException('Payment has already been fully refunded');
+    }
+
+    if (requestedAmount > remainingAmount) {
+      throw new BadRequestException(
+        'Refund amount exceeds remaining refundable amount',
+      );
+    }
+
+    await this.assertSufficientBusinessBalance(
+      business.id,
+      requestedAmount,
+      currency,
+    );
+
+    const transactionId =
+      this.toSafeString(dto.transactionId) ||
+      this.extractNombaTransactionId(verification.data) ||
+      this.extractNombaTransactionId(attempt.rawResponse) ||
+      attempt.providerReference;
+    const scopedIdempotencyKey = dto.idempotencyKey
+      ? `${business.id}:${dto.idempotencyKey}`
+      : undefined;
+    const providerReference = `og_refund_${randomUUID()}`;
+    const { refund, created } =
+      await this.billingRepository.createRefundIdempotently({
+        businessId: business.id,
+        businessCustomerId: invoice.businessCustomerId,
+        userId,
+        subscriptionId: attempt.subscriptionId,
+        invoiceId: attempt.invoiceId,
+        paymentAttemptId: attempt.id,
+        status: 'pending',
+        provider: 'nomba',
+        providerReference,
+        originalTransactionId: transactionId,
+        amount: requestedAmount.toFixed(2),
+        currency,
+        reason: dto.reason,
+        idempotencyKey: scopedIdempotencyKey,
+        accountNumber: dto.accountNumber,
+        bankCode: dto.bankCode,
+      });
+
+    if (!created) {
+      return this.formatRefund(refund);
+    }
+
+    const shouldSendAmountToNomba =
+      Boolean(dto.amount) || committedRefundAmount > 0;
+
+    try {
+      const response =
+        await this.nombaRefundService.refundCheckoutTransaction({
+          transactionId,
+          amount: shouldSendAmountToNomba ? requestedAmount : undefined,
+          accountNumber: dto.accountNumber,
+          bankCode: dto.bankCode,
+        });
+
+      if (response.code !== '00' || response.data?.success === false) {
+        await this.billingRepository.updateRefund(refund.id, {
+          status: 'failed',
+          rawResponse: this.toRecord(response),
+        });
+
+        throw new BadRequestException(
+          response.description ??
+            response.data?.message ??
+            'Nomba refund failed',
+        );
+      }
+
+      await this.ledgerService.debitBusinessAvailable({
+        businessId: business.id,
+        amount: requestedAmount.toFixed(2),
+        currency,
+        idempotencyKey: `refund:${refund.id}:debit`,
+        sourceType: 'subscription_refund',
+        sourceId: refund.id,
+        description: dto.reason ?? `Refund for payment ${attempt.id}`,
+        metadata: {
+          paymentAttemptId: attempt.id,
+          invoiceId: invoice.id,
+          subscriptionId: attempt.subscriptionId,
+          providerReference: refund.providerReference,
+          originalTransactionId: transactionId,
+          transferRefund: Boolean(dto.accountNumber && dto.bankCode),
+        },
+        type: 'refund_debit',
+      });
+
+      const [updatedRefund] = await this.billingRepository.updateRefund(
+        refund.id,
+        {
+          status: 'succeeded',
+          rawResponse: this.toRecord(response),
+          ledgerDebitedAt: new Date(),
+        },
+      );
+
+      return this.formatRefund(updatedRefund);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      const [pendingRefund] = await this.billingRepository.updateRefund(
+        refund.id,
+        {
+          status: 'processing',
+          rawResponse: {
+            error: this.getErrorMessage(error),
+          },
+        },
+      );
+
+      return {
+        ...this.formatRefund(pendingRefund),
+        warning: 'Refund submission could not be confirmed with Nomba',
+      };
+    }
+  }
+
+  async cancelSubscription(
+    userId: string,
+    subscriptionId: string,
+    dto: CancelSubscriptionDto = {},
+  ) {
+    const business =
+      await this.businessesService.getDefaultBusinessForUser(userId);
+    const subscription =
+      await this.billingRepository.findSubscriptionForBusiness(
+        business.id,
+        subscriptionId,
+      );
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    if (subscription.status === 'canceled') {
+      return {
+        id: subscription.id,
+        status: subscription.status,
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        canceledAt: subscription.canceledAt?.toISOString() ?? null,
+        currentPeriodEnd:
+          subscription.currentPeriodEnd?.toISOString() ?? null,
+      };
+    }
+
+    const cancelAtPeriodEnd = dto.cancelAtPeriodEnd ?? true;
+    const [updated] = await this.billingRepository.updateSubscription(
+      subscription.id,
+      cancelAtPeriodEnd && subscription.currentPeriodEnd
+        ? {
+            cancelAtPeriodEnd: true,
+          }
+        : {
+            status: 'canceled',
+            cancelAtPeriodEnd: false,
+            canceledAt: new Date(),
+          },
+    );
+
+    return {
+      id: updated.id,
+      status: updated.status,
+      cancelAtPeriodEnd: updated.cancelAtPeriodEnd,
+      canceledAt: updated.canceledAt?.toISOString() ?? null,
+      currentPeriodEnd: updated.currentPeriodEnd?.toISOString() ?? null,
+    };
   }
 
   async startSubscriptionCheckout(
@@ -557,6 +828,7 @@ export class BillingService {
   }
 
   async enqueueDueRenewals() {
+    const canceled = await this.cancelDueSubscriptionsAtPeriodEnd();
     const dueSubscriptions = await this.billingRepository.findDueSubscriptions(
       new Date(Date.now() + 60 * 60 * 1000),
     );
@@ -578,7 +850,7 @@ export class BillingService {
       );
     }
 
-    return { queued: dueSubscriptions.length };
+    return { queued: dueSubscriptions.length, canceled };
   }
 
   async chargeRenewal(subscriptionId: string) {
@@ -587,6 +859,10 @@ export class BillingService {
 
     if (!subscription) {
       throw new NotFoundException('Subscription not found');
+    }
+
+    if (subscription.status === 'canceled' || subscription.cancelAtPeriodEnd) {
+      return { subscriptionId, status: 'canceled' };
     }
 
     const plan = await this.billingRepository.findPlanById(subscription.planId);
@@ -705,6 +981,23 @@ export class BillingService {
     return { subscriptionId, status: 'succeeded' };
   }
 
+  private async cancelDueSubscriptionsAtPeriodEnd() {
+    const dueCancellations =
+      await this.billingRepository.findSubscriptionsDueForPeriodEndCancellation(
+        new Date(),
+      );
+
+    for (const subscription of dueCancellations) {
+      await this.billingRepository.updateSubscription(subscription.id, {
+        status: 'canceled',
+        cancelAtPeriodEnd: false,
+        canceledAt: new Date(),
+      });
+    }
+
+    return dueCancellations.length;
+  }
+
   private async getDashboardDataset(userId: string) {
     const business =
       await this.businessesService.getDefaultBusinessForUser(userId);
@@ -717,6 +1010,7 @@ export class BillingService {
       paymentMethods,
       checkoutOrders,
       ledgerEntries,
+      refunds,
       apiKeys,
     ] = await Promise.all([
       this.billingRepository.listPlansForBusiness(business.id),
@@ -727,6 +1021,7 @@ export class BillingService {
       this.billingRepository.listPaymentMethodsForBusiness(business.id),
       this.billingRepository.listCheckoutOrdersForBusiness(business.id),
       this.billingRepository.listLedgerEntriesForBusiness(business.id),
+      this.billingRepository.listRefundsForBusiness(business.id),
       this.apiKeysService.list(userId),
     ]);
 
@@ -740,6 +1035,7 @@ export class BillingService {
       paymentAttempts,
       paymentMethods,
       plans,
+      refunds,
       subscriptions,
     };
   }
@@ -777,6 +1073,88 @@ export class BillingService {
 
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private parsePositiveAmount(value: string) {
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      throw new BadRequestException('Amount must be greater than zero');
+    }
+
+    return this.roundAmount(parsed);
+  }
+
+  private roundAmount(value: number) {
+    return Math.round(value * 100) / 100;
+  }
+
+  private async assertSufficientBusinessBalance(
+    businessId: string,
+    amount: number,
+    currency: string,
+  ) {
+    const balance = await this.ledgerService.getBusinessAvailableBalance(
+      businessId,
+      currency,
+    );
+
+    if (amount > balance) {
+      throw new BadRequestException('Insufficient Optimus ledger balance');
+    }
+  }
+
+  private formatRefund(refund: {
+    id: string;
+    providerReference: string;
+    originalTransactionId: string;
+    amount: string;
+    currency: string;
+    status: string;
+    reason: string | null;
+    accountNumber: string | null;
+    bankCode: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: refund.id,
+      providerReference: refund.providerReference,
+      transaction: refund.originalTransactionId,
+      amount: this.toNumber(refund.amount),
+      currency: refund.currency,
+      status: refund.status,
+      reason: refund.reason,
+      transferRefund: Boolean(refund.accountNumber && refund.bankCode),
+      createdAt: refund.createdAt.toISOString(),
+      updatedAt: refund.updatedAt.toISOString(),
+    };
+  }
+
+  private extractNombaTransactionId(value: unknown) {
+    const record = this.toRecord(value);
+    const data = this.toRecord(record.data);
+    const transaction = this.toRecord(record.transaction);
+    const nestedTransaction = this.toRecord(data.transaction);
+
+    return (
+      this.toSafeString(record.transactionId) ||
+      this.toSafeString(record.id) ||
+      this.toSafeString(transaction.transactionId) ||
+      this.toSafeString(transaction.id) ||
+      this.toSafeString(data.transactionId) ||
+      this.toSafeString(data.id) ||
+      this.toSafeString(nestedTransaction.transactionId) ||
+      this.toSafeString(nestedTransaction.id)
+    );
+  }
+
+  private getErrorMessage(error: unknown) {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return 'Unknown error';
   }
 
   private transactionMatchesInvoice(

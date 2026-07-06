@@ -22,6 +22,27 @@
       "when": 1783074928499,
       "tag": "0002_overjoyed_kronos",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783279714351,
+      "tag": "0003_hesitant_the_hunter",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783282101124,
+      "tag": "0004_smart_omega_flight",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783338557792,
+      "tag": "0005_far_obadiah_stane",
+      "breakpoints": true
     }
   ]
 }

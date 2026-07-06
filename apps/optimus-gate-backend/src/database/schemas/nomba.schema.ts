@@ -3,6 +3,7 @@ import {
   jsonb,
   pgTable,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -72,6 +73,9 @@ export const nombaWebhookEvents = pgTable(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex('nomba_webhook_events_event_reference_unique').on(
+      table.eventReference,
+    ),
     index('nomba_webhook_events_business_id_idx').on(table.businessId),
     index('nomba_webhook_events_type_idx').on(table.eventType),
     index('nomba_webhook_events_order_reference_idx').on(table.orderReference),

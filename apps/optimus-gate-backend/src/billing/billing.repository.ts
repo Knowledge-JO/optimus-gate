@@ -10,6 +10,7 @@ import {
   plans,
   subscriptionInvoices,
   subscriptionPaymentAttempts,
+  subscriptionRefunds,
   subscriptions,
 } from '../database/schemas';
 import type { DrizzleDatabase } from '../database/database.types';
@@ -19,6 +20,7 @@ type Subscription = typeof subscriptions.$inferSelect;
 type SubscriptionInvoice = typeof subscriptionInvoices.$inferSelect;
 type SubscriptionPaymentAttempt =
   typeof subscriptionPaymentAttempts.$inferSelect;
+type SubscriptionRefund = typeof subscriptionRefunds.$inferSelect;
 type CustomerPaymentMethod = typeof customerPaymentMethods.$inferSelect;
 type BusinessCustomer = typeof businessCustomers.$inferSelect;
 type NombaCheckoutOrder = typeof nombaCheckoutOrders.$inferSelect;
@@ -86,6 +88,14 @@ export class BillingRepository {
       .orderBy(desc(subscriptionPaymentAttempts.createdAt));
   }
 
+  listRefundsForBusiness(businessId: string): Promise<SubscriptionRefund[]> {
+    return this.db
+      .select()
+      .from(subscriptionRefunds)
+      .where(eq(subscriptionRefunds.businessId, businessId))
+      .orderBy(desc(subscriptionRefunds.createdAt));
+  }
+
   listPaymentMethodsForBusiness(
     businessId: string,
   ): Promise<CustomerPaymentMethod[]> {
@@ -140,10 +150,61 @@ export class BillingRepository {
     });
   }
 
+  findSubscriptionForBusiness(
+    businessId: string,
+    subscriptionId: string,
+  ): Promise<Subscription | undefined> {
+    return this.db.query.subscriptions.findFirst({
+      where: and(
+        eq(subscriptions.businessId, businessId),
+        eq(subscriptions.id, subscriptionId),
+      ),
+    });
+  }
+
   findInvoiceById(invoiceId: string): Promise<SubscriptionInvoice | undefined> {
     return this.db.query.subscriptionInvoices.findFirst({
       where: eq(subscriptionInvoices.id, invoiceId),
     });
+  }
+
+  findPaymentAttemptForBusiness(
+    businessId: string,
+    paymentAttemptId: string,
+  ): Promise<SubscriptionPaymentAttempt | undefined> {
+    return this.db.query.subscriptionPaymentAttempts.findFirst({
+      where: and(
+        eq(subscriptionPaymentAttempts.businessId, businessId),
+        eq(subscriptionPaymentAttempts.id, paymentAttemptId),
+      ),
+    });
+  }
+
+  findPaymentAttemptByReferenceForBusiness(
+    businessId: string,
+    providerReference: string,
+  ): Promise<SubscriptionPaymentAttempt | undefined> {
+    return this.db.query.subscriptionPaymentAttempts.findFirst({
+      where: and(
+        eq(subscriptionPaymentAttempts.businessId, businessId),
+        eq(subscriptionPaymentAttempts.providerReference, providerReference),
+      ),
+    });
+  }
+
+  listRefundsForPaymentAttempt(
+    businessId: string,
+    paymentAttemptId: string,
+  ): Promise<SubscriptionRefund[]> {
+    return this.db
+      .select()
+      .from(subscriptionRefunds)
+      .where(
+        and(
+          eq(subscriptionRefunds.businessId, businessId),
+          eq(subscriptionRefunds.paymentAttemptId, paymentAttemptId),
+        ),
+      );
   }
 
   findPlanById(planId: string): Promise<Plan | undefined> {
@@ -175,6 +236,52 @@ export class BillingRepository {
     return this.db
       .insert(subscriptionPaymentAttempts)
       .values(input)
+      .returning();
+  }
+
+  async createRefundIdempotently(
+    input: typeof subscriptionRefunds.$inferInsert,
+  ): Promise<{ refund: SubscriptionRefund; created: boolean }> {
+    if (!input.idempotencyKey) {
+      const [refund] = await this.db
+        .insert(subscriptionRefunds)
+        .values(input)
+        .returning();
+
+      return { refund, created: true };
+    }
+
+    const [refund] = await this.db
+      .insert(subscriptionRefunds)
+      .values(input)
+      .onConflictDoNothing({
+        target: subscriptionRefunds.idempotencyKey,
+      })
+      .returning();
+
+    if (refund) {
+      return { refund, created: true };
+    }
+
+    const existing = await this.db.query.subscriptionRefunds.findFirst({
+      where: eq(subscriptionRefunds.idempotencyKey, input.idempotencyKey),
+    });
+
+    if (!existing) {
+      throw new Error('Unable to load existing refund');
+    }
+
+    return { refund: existing, created: false };
+  }
+
+  updateRefund(
+    id: string,
+    input: Partial<typeof subscriptionRefunds.$inferInsert>,
+  ): Promise<SubscriptionRefund[]> {
+    return this.db
+      .update(subscriptionRefunds)
+      .set({ ...input, updatedAt: new Date() })
+      .where(eq(subscriptionRefunds.id, id))
       .returning();
   }
 
@@ -251,6 +358,50 @@ export class BillingRepository {
     return this.db.insert(nombaWebhookEvents).values(input).returning();
   }
 
+  async createWebhookEventIdempotently(
+    input: typeof nombaWebhookEvents.$inferInsert,
+  ): Promise<{ event: NombaWebhookEvent; created: boolean }> {
+    if (!input.eventReference) {
+      const [event] = await this.createWebhookEvent(input);
+
+      if (!event) {
+        throw new Error('Unable to create webhook event');
+      }
+
+      return { event, created: true };
+    }
+
+    const [event] = await this.db
+      .insert(nombaWebhookEvents)
+      .values(input)
+      .onConflictDoNothing({
+        target: nombaWebhookEvents.eventReference,
+      })
+      .returning();
+
+    if (event) {
+      return { event, created: true };
+    }
+
+    const existing = await this.db.query.nombaWebhookEvents.findFirst({
+      where: eq(nombaWebhookEvents.eventReference, input.eventReference),
+    });
+
+    if (!existing) {
+      throw new Error('Unable to load existing webhook event');
+    }
+
+    return { event: existing, created: false };
+  }
+
+  markWebhookEventProcessed(id: string): Promise<NombaWebhookEvent[]> {
+    return this.db
+      .update(nombaWebhookEvents)
+      .set({ processedAt: new Date() })
+      .where(eq(nombaWebhookEvents.id, id))
+      .returning();
+  }
+
   async findDueSubscriptions(cutoff: Date): Promise<Subscription[]> {
     return this.db
       .select()
@@ -258,6 +409,22 @@ export class BillingRepository {
       .where(
         and(
           inArray(subscriptions.status, ['active', 'past_due']),
+          eq(subscriptions.cancelAtPeriodEnd, false),
+          lte(subscriptions.currentPeriodEnd, cutoff),
+        ),
+      );
+  }
+
+  async findSubscriptionsDueForPeriodEndCancellation(
+    cutoff: Date,
+  ): Promise<Subscription[]> {
+    return this.db
+      .select()
+      .from(subscriptions)
+      .where(
+        and(
+          inArray(subscriptions.status, ['active', 'past_due']),
+          eq(subscriptions.cancelAtPeriodEnd, true),
           lte(subscriptions.currentPeriodEnd, cutoff),
         ),
       );

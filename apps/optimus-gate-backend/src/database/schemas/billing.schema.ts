@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -44,6 +45,13 @@ export const paymentAttemptStatusEnum = pgEnum('payment_attempt_status', [
   'succeeded',
   'failed',
   'requires_action',
+]);
+
+export const refundStatusEnum = pgEnum('refund_status', [
+  'pending',
+  'processing',
+  'succeeded',
+  'failed',
 ]);
 
 export const paymentMethodTypeEnum = pgEnum('payment_method_type', [
@@ -249,5 +257,65 @@ export const subscriptionPaymentAttempts = pgTable(
       table.providerReference,
     ),
     index('subscription_payment_attempts_status_idx').on(table.status),
+  ],
+);
+
+export const subscriptionRefunds = pgTable(
+  'subscription_refunds',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    businessCustomerId: uuid('business_customer_id')
+      .notNull()
+      .references(() => businessCustomers.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    subscriptionId: uuid('subscription_id')
+      .notNull()
+      .references(() => subscriptions.id, { onDelete: 'cascade' }),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => subscriptionInvoices.id, { onDelete: 'cascade' }),
+    paymentAttemptId: uuid('payment_attempt_id')
+      .notNull()
+      .references(() => subscriptionPaymentAttempts.id, {
+        onDelete: 'cascade',
+      }),
+    status: refundStatusEnum('status').notNull().default('pending'),
+    provider: varchar('provider', { length: 40 }).notNull().default('nomba'),
+    providerReference: varchar('provider_reference', { length: 180 }).notNull(),
+    originalTransactionId: varchar('original_transaction_id', {
+      length: 180,
+    }).notNull(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    currency: varchar('currency', { length: 3 }).notNull().default('NGN'),
+    reason: text('reason'),
+    idempotencyKey: varchar('idempotency_key', { length: 220 }),
+    accountNumber: varchar('account_number', { length: 30 }),
+    bankCode: varchar('bank_code', { length: 30 }),
+    rawResponse: jsonb('raw_response').$type<Record<string, unknown>>(),
+    ledgerDebitedAt: timestamp('ledger_debited_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('subscription_refunds_business_id_idx').on(table.businessId),
+    index('subscription_refunds_payment_attempt_id_idx').on(
+      table.paymentAttemptId,
+    ),
+    index('subscription_refunds_status_idx').on(table.status),
+    index('subscription_refunds_provider_reference_idx').on(
+      table.providerReference,
+    ),
+    uniqueIndex('subscription_refunds_idempotency_key_unique').on(
+      table.idempotencyKey,
+    ),
   ],
 );

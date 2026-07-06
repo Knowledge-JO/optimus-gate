@@ -44,6 +44,8 @@ function getTrackerValue(value: unknown) {
         NOMBA_CLIENT_ID: Joi.string().optional(),
         NOMBA_CLIENT_SECRET: Joi.string().optional(),
         NOMBA_WEBHOOK_SECRET: Joi.string().optional(),
+        NOMBA_SUB_ACCOUNT_ID: Joi.string().optional(),
+        SUB_ACCOUNT_ID: Joi.string().optional(),
         REDIS_URL: Joi.string()
           .uri({
             scheme: ['redis', 'rediss'],

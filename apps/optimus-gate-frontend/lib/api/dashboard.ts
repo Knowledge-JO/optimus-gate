@@ -1,8 +1,11 @@
 import { backendFetch } from "./backend";
 import type {
   ApiKeyRecord,
+  BankRecord,
   DashboardMetric,
   OnboardingChecklistItem,
+  PayoutBankAccountRecord,
+  PayoutBankAccountSnapshot,
   PayoutRecord,
   PlanRecord,
   RefundRecord,
@@ -49,6 +52,23 @@ type BackendSubscription = Partial<SubscriptionRecord> & {
   status?: string | null;
 };
 
+type BackendPayout = Partial<PayoutRecord> & {
+  id: string;
+  amount?: string | number | null;
+  currency?: string | null;
+  status?: string | null;
+  providerReference?: string | null;
+  nombaTransactionId?: string | null;
+  bankAccount?: PayoutBankAccountSnapshot | null;
+  failureReason?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+type BackendBanksResponse = {
+  banks?: BankRecord[];
+};
+
 export const apiTags = {
   stats: "dashboard:stats",
   plans: "dashboard:plans",
@@ -58,6 +78,8 @@ export const apiTags = {
   transactions: "dashboard:transactions",
   refunds: "dashboard:refunds",
   payouts: "dashboard:payouts",
+  payoutBanks: "dashboard:payout-banks",
+  payoutBankAccounts: "dashboard:payout-bank-accounts",
   subaccounts: "dashboard:subaccounts",
   onboarding: "dashboard:onboarding",
 };
@@ -117,10 +139,38 @@ export async function getRefunds() {
 }
 
 export async function getPayouts() {
-  return readOrEmpty<PayoutRecord>("/billing/payouts", {
+  const payouts = await readOrEmpty<BackendPayout>("/billing/payouts", {
     tags: [apiTags.payouts],
     revalidate: 30,
   });
+
+  return payouts.map(toPayoutRecord);
+}
+
+export async function getPayoutBanks() {
+  const response = await backendFetch<BackendBanksResponse>(
+    "/billing/payouts/banks",
+    {
+      tags: [apiTags.payoutBanks],
+      revalidate: 60 * 60,
+    },
+  );
+
+  if (!response.ok || !response.data?.banks) {
+    return [];
+  }
+
+  return response.data.banks;
+}
+
+export async function getPayoutBankAccounts() {
+  return readOrEmpty<PayoutBankAccountRecord>(
+    "/billing/payouts/bank-accounts",
+    {
+      tags: [apiTags.payoutBankAccounts],
+      revalidate: 30,
+    },
+  );
 }
 
 export async function getSubaccounts() {
@@ -204,6 +254,38 @@ function toSubscriptionRecord(
     attempts: subscription.attempts ?? 0,
     status: subscription.status ?? "unknown",
   };
+}
+
+function toPayoutRecord(payout: BackendPayout): PayoutRecord {
+  const providerReference =
+    payout.providerReference ?? payout.batch ?? payout.id.slice(0, 8);
+  const bankAccount = payout.bankAccount ?? null;
+  const accountNumber = bankAccount?.accountNumber
+    ? maskAccount(bankAccount.accountNumber)
+    : "No account";
+  const bankName = bankAccount?.bankName ?? bankAccount?.bankCode ?? "Bank";
+
+  return {
+    id: payout.id,
+    batch: providerReference,
+    account: `${bankName} · ${accountNumber}`,
+    amount: toNumber(payout.amount),
+    currency: payout.currency ?? "NGN",
+    entries: payout.entries ?? 1,
+    eta: payout.updatedAt ?? payout.createdAt ?? "Pending",
+    status: payout.status ?? "unknown",
+    providerReference,
+    nombaTransactionId: payout.nombaTransactionId,
+    bankAccount,
+    failureReason: payout.failureReason,
+    createdAt: payout.createdAt ?? undefined,
+    updatedAt: payout.updatedAt ?? undefined,
+  };
+}
+
+function maskAccount(accountNumber: string) {
+  if (accountNumber.length <= 4) return accountNumber;
+  return `${accountNumber.slice(0, 2)}****${accountNumber.slice(-4)}`;
 }
 
 function toNumber(value: string | number | null | undefined) {

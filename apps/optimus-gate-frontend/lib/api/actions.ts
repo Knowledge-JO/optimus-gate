@@ -8,6 +8,9 @@ import type { CheckoutLinkRecord, CreatedApiKey } from "./types";
 
 export type MutationState = {
   status: "idle" | "success" | "error";
+  accountName?: string;
+  accountNumber?: string;
+  bankCode?: string;
   checkoutLink?: string;
   message?: string;
   orderReference?: string;
@@ -45,6 +48,29 @@ const createCheckoutLinkSchema = z.object({
 const reconcileCheckoutOrdersSchema = z
   .array(z.string().trim().min(1))
   .min(1, "At least one order reference is required");
+
+const bankAccountSchema = z.object({
+  accountNumber: z.string().regex(/^\d{10}$/, "Enter a 10 digit account number"),
+  bankCode: z.string().min(1, "Select a bank"),
+  bankName: z.string().optional(),
+});
+
+const savePayoutBankAccountSchema = bankAccountSchema.extend({
+  isDefault: z
+    .union([z.literal("on"), z.literal("true"), z.literal("false")])
+    .optional(),
+});
+
+const bankAccountIdSchema = z.object({
+  bankAccountId: z.string().uuid("Bank account id is invalid"),
+});
+
+const createPayoutSchema = z.object({
+  bankAccountId: z.string().uuid("Select a payout bank account"),
+  amount: z.string().min(1, "Amount is required"),
+  narration: z.string().max(120, "Narration must be 120 characters or less").optional(),
+  idempotencyKey: z.string().max(160).optional(),
+});
 
 export async function createPlanAction(
   _state: MutationState,
@@ -209,6 +235,157 @@ export async function reconcileCheckoutOrdersAction(
     status: "success",
     message: `${succeeded} checkout order${succeeded === 1 ? "" : "s"} reconciled.`,
   };
+}
+
+export async function lookupPayoutBankAccountAction(
+  _state: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const parsed = bankAccountSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return validationError(parsed.error.flatten().fieldErrors);
+  }
+
+  const result = await backendMutation<{
+    accountName?: string;
+    accountNumber?: string;
+    bankCode?: string;
+  }>("/billing/payouts/bank-lookup", {
+    method: "POST",
+    body: {
+      accountNumber: parsed.data.accountNumber,
+      bankCode: parsed.data.bankCode,
+    },
+  });
+
+  if (!result.ok) {
+    return {
+      status: "error",
+      message: result.error.message,
+    };
+  }
+
+  return {
+    status: "success",
+    accountName: result.data.accountName,
+    accountNumber: result.data.accountNumber ?? parsed.data.accountNumber,
+    bankCode: result.data.bankCode ?? parsed.data.bankCode,
+    message: result.data.accountName
+      ? `Verified ${result.data.accountName}.`
+      : "Account verified.",
+  };
+}
+
+export async function savePayoutBankAccountAction(
+  _state: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const parsed = savePayoutBankAccountSchema.safeParse(
+    Object.fromEntries(formData),
+  );
+
+  if (!parsed.success) {
+    return validationError(parsed.error.flatten().fieldErrors);
+  }
+
+  const result = await backendMutation("/billing/payouts/bank-accounts", {
+    method: "POST",
+    body: {
+      accountNumber: parsed.data.accountNumber,
+      bankCode: parsed.data.bankCode,
+      bankName: parsed.data.bankName || undefined,
+      isDefault: parsed.data.isDefault === "on" || parsed.data.isDefault === "true",
+    },
+  });
+
+  if (!result.ok) {
+    return {
+      status: "error",
+      message: result.error.message,
+    };
+  }
+
+  revalidateTag(apiTags.payoutBankAccounts, "max");
+  return { status: "success", message: "Bank account saved." };
+}
+
+export async function deletePayoutBankAccountAction(
+  formData: FormData,
+): Promise<void> {
+  const parsed = bankAccountIdSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return;
+  }
+
+  const result = await backendMutation(
+    `/billing/payouts/bank-accounts/${parsed.data.bankAccountId}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!result.ok) {
+    return;
+  }
+
+  revalidateTag(apiTags.payoutBankAccounts, "max");
+}
+
+export async function setDefaultPayoutBankAccountAction(
+  formData: FormData,
+): Promise<void> {
+  const parsed = bankAccountIdSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return;
+  }
+
+  const result = await backendMutation(
+    `/billing/payouts/bank-accounts/${parsed.data.bankAccountId}/default`,
+    {
+      method: "PATCH",
+    },
+  );
+
+  if (!result.ok) {
+    return;
+  }
+
+  revalidateTag(apiTags.payoutBankAccounts, "max");
+}
+
+export async function createPayoutAction(
+  _state: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const parsed = createPayoutSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return validationError(parsed.error.flatten().fieldErrors);
+  }
+
+  const result = await backendMutation("/billing/payouts", {
+    method: "POST",
+    body: {
+      bankAccountId: parsed.data.bankAccountId,
+      amount: parsed.data.amount,
+      narration: parsed.data.narration || undefined,
+      idempotencyKey: parsed.data.idempotencyKey || undefined,
+    },
+  });
+
+  if (!result.ok) {
+    return {
+      status: "error",
+      message: result.error.message,
+    };
+  }
+
+  revalidateTag(apiTags.payouts, "max");
+  revalidateTag(apiTags.stats, "max");
+  return { status: "success", message: "Payout request submitted." };
 }
 
 function validationError(

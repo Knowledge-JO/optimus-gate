@@ -1,12 +1,8 @@
-import { Body, Controller, Headers, Post, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Headers, Post } from '@nestjs/common';
 import { NombaWebhookService } from '../nomba/nomba-webhook.service';
+import { PayoutsService } from '../payouts/payouts.service';
 import { BillingRepository } from './billing.repository';
 import { BillingService } from './billing.service';
-
-type RawBodyRequest = Request & {
-  rawBody?: Buffer;
-};
 
 @Controller('/webhook')
 export class NombaWebhookController {
@@ -14,23 +10,23 @@ export class NombaWebhookController {
     private readonly nombaWebhookService: NombaWebhookService,
     private readonly billingRepository: BillingRepository,
     private readonly billingService: BillingService,
+    private readonly payoutsService: PayoutsService,
   ) {}
 
   @Post()
   async handleWebhook(
-    @Req() request: RawBodyRequest,
     @Body() payload: Record<string, unknown>,
     @Headers('nomba-signature') signature?: string,
+    @Headers('nomba-sig-value') signatureValue?: string,
+    @Headers('nomba-timestamp') timestamp?: string,
   ) {
-    console.log(
-      'Received Nomba webhook payload:',
-      JSON.stringify(payload, null, 2),
-    );
     this.nombaWebhookService.verifySignature(
-      request.rawBody ?? Buffer.from(JSON.stringify(payload)),
-      signature,
+      payload,
+      signature ?? signatureValue,
+      timestamp,
     );
     const eventType =
+      this.toSafeString(payload.event_type) ??
       this.toSafeString(payload.eventType) ??
       this.toSafeString(payload.type) ??
       'unknown';
@@ -46,32 +42,63 @@ export class NombaWebhookController {
         ? { businessId: checkoutOrder.businessId }
         : {}),
       eventType,
-      signature,
+      signature: signature ?? signatureValue,
       eventReference:
         this.toSafeString(payload.eventId) ??
+        this.toSafeString(payload.event_id) ??
+        this.toSafeString(payload.eventReference) ??
+        this.toSafeString(payload.requestId) ??
+        this.toSafeString(payload.request_id) ??
         this.toSafeString(payload.reference) ??
-        '',
+        undefined,
       orderReference,
       payload,
     };
 
-    await this.billingRepository.createWebhookEvent(webhookEvent);
+    const { event, created } =
+      await this.billingRepository.createWebhookEventIdempotently(webhookEvent);
 
-    if (orderReference) {
-      await this.billingService.verifyCheckoutOrder(orderReference);
+    if (!created && event.processedAt) {
+      return { received: true, duplicate: true };
     }
 
-    return { received: true };
+    if (event.orderReference) {
+      await this.billingService.verifyCheckoutOrder(event.orderReference);
+    } else if (eventType.startsWith('payout_')) {
+      await this.payoutsService.handleNombaPayoutWebhook(eventType, payload);
+    }
+
+    await this.billingRepository.markWebhookEventProcessed(event.id);
+
+    return { received: true, duplicate: !created };
   }
 
   private extractOrderReference(payload: Record<string, unknown>) {
     const data = payload.data as Record<string, unknown> | undefined;
+    const order = data?.order as Record<string, unknown> | undefined;
+    const transaction = data?.transaction as
+      Record<string, unknown> | undefined;
+
     return (
       this.toSafeString(data?.orderReference) ??
+      this.toSafeString(order?.orderReference) ??
+      this.toSafeString(transaction?.orderReference) ??
       this.toSafeString(payload.orderReference) ??
       this.toSafeString(payload.transactionRef) ??
+      this.toSafeString(payload.transactionReference) ??
+      this.toOptimusOrderReference(transaction?.merchantTxRef) ??
       ''
     );
+  }
+
+  private toOptimusOrderReference(value: unknown) {
+    const reference = this.toSafeString(value);
+
+    if (reference?.startsWith('og_')) {
+      return reference;
+    }
+
+    return undefined;
   }
 
   private toSafeString(value: unknown) {

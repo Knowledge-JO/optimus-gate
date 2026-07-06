@@ -1,5 +1,6 @@
 import { Layers3, ReceiptText, Repeat2, WalletCards } from "lucide-react";
 import { Suspense } from "react";
+import { ActionDialog } from "@/components/dashboard/ActionDialog";
 import { AnimatedGrid } from "@/components/dashboard/AnimatedPage";
 import { CreatePlanForm } from "@/components/dashboard/forms/CreatePlanForm";
 import { MetricCard } from "@/components/dashboard/MetricCard";
@@ -10,7 +11,6 @@ import {
   SurfaceSkeleton,
 } from "@/components/dashboard/Skeletons";
 import { Surface } from "@/components/dashboard/Surface";
-// import { Button } from "@/components/ui/button";
 import { getPlans } from "@/lib/api/dashboard";
 import { formatNaira } from "@/lib/format";
 
@@ -24,30 +24,13 @@ export default function Plan() {
       eyebrow="Billing products"
       title="Plans built for repeatable revenue"
       description="Create and monitor subscription products that power checkout sessions, invoices, and renewal schedules."
-      // action={
-      //   <Button className="h-10 bg-black text-white hover:bg-zinc-900">
-      //     <Plus className="size-4" />
-      //     New plan
-      //   </Button>
-      // }
     >
       <Suspense fallback={<MetricsSkeleton />}>
         <PlanMetrics />
       </Suspense>
-      <div className="grid min-w-0 gap-4 items-start xl:grid-cols-[minmax(0,1fr)_minmax(22rem,24rem)]">
-        <Suspense fallback={<SurfaceSkeleton />}>
-          <PlansTable />
-        </Suspense>
-        <Surface
-          title="Create plan"
-          description="Posts to the backend /billing/plans endpoint."
-          className="min-w-0"
-        >
-          <div className="p-4">
-            <CreatePlanForm />
-          </div>
-        </Surface>
-      </div>
+      <Suspense fallback={<SurfaceSkeleton />}>
+        <PlansTable />
+      </Suspense>
     </PageShell>
   );
 }
@@ -97,6 +80,15 @@ async function PlansTable() {
       title="Plan catalog"
       description="Fetched from the backend /billing/plans endpoint."
       className="min-w-0"
+      action={
+        <ActionDialog
+          triggerLabel="New plan"
+          title="Create plan"
+          description="Create a subscription plan for checkout."
+        >
+          <CreatePlanForm />
+        </ActionDialog>
+      }
     >
       <PlanCatalog plans={plans} />
     </Surface>

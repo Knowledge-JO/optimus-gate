@@ -4,4 +4,5 @@ export * from './billing.schema';
 export * from './businesses.schema';
 export * from './ledger.schema';
 export * from './nomba.schema';
+export * from './payouts.schema';
 export * from './users.schema';

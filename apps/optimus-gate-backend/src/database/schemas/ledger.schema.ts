@@ -23,6 +23,7 @@ export const ledgerEntryTypeEnum = pgEnum('ledger_entry_type', [
   'refund_debit',
   'reversal_debit',
   'payout_debit',
+  'payout_reversal_credit',
   'adjustment',
 ]);
 

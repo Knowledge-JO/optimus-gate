@@ -50,6 +50,7 @@ Every payment uses Optimus Gate's Nomba credentials/account context, while Optim
 7. On refunds/reversals, debit or hold ledger balances idempotently.
 8. Use Nomba transaction verification as the external source of truth and Optimus ledger as the business balance source of truth.
 9. Build payout/withdrawal later as ledger debit plus Nomba transfer from the central account.
+10. Support business payout bank accounts and central-sub-account bank transfers, while enforcing Optimus ledger balance ownership.
 
 ## Tokenized Card Subscription Flow
 
@@ -123,7 +124,8 @@ Renewal payment:
 - [x] Add `ledger_entries`.
 - [ ] Add `business_balances` view/query helper if needed.
 - [x] Credit business ledger only after Nomba transaction verification succeeds.
-- [ ] Debit or hold ledger on refund, reversal, or payout.
+- [x] Debit or hold ledger on refund or reversal.
+- [x] Debit ledger for payouts before Nomba transfer and reverse on clear rejection.
 - [x] Make ledger writes idempotent by payment attempt, webhook event, or transaction reference.
 
 ## 4. Install Scheduling and Queue Libraries
@@ -144,6 +146,7 @@ Renewal payment:
 - [x] `subscription_payment_attempts`
 - [x] `customer_payment_methods`
 - [x] `nomba_checkout_orders`
+- [x] `subscription_refunds`
 - [x] `nomba_webhook_events`
 - [x] `api_keys`
 - [x] `ledger_accounts`
@@ -178,7 +181,7 @@ Renewal payment:
 - [x] Add raw body support for webhook signature verification.
 - [x] Verify `nomba-signature` with `NOMBA_WEBHOOK_SECRET`.
 - [x] Store webhook body in `nomba_webhook_events`.
-- [ ] Make webhook processing idempotent.
+- [x] Make webhook processing idempotent.
 - [x] Match webhook to `orderReference` / transaction reference.
 - [x] Trigger transaction verification before updating subscription state.
 
@@ -240,10 +243,10 @@ Renewal payment:
 
 ## 15. Add Cancellation
 
-- [ ] Support immediate cancellation.
-- [ ] Support cancellation at period end.
-- [ ] Stop future renewals.
-- [ ] Preserve historical invoices and payment attempts.
+- [x] Support immediate cancellation.
+- [x] Support cancellation at period end.
+- [x] Stop future renewals.
+- [x] Preserve historical invoices and payment attempts.
 
 ## 16. Add Plan Changes
 
@@ -262,6 +265,21 @@ Renewal payment:
 - [ ] View business ledger and balances.
 - [ ] Compare Nomba treasury balance to aggregate Optimus ledger liabilities.
 
+## 18. Business Payouts
+
+- [x] Fetch Nigerian banks and bank codes from Nomba for the dashboard UI.
+- [x] Verify bank account number and bank code before saving payout account.
+- [x] Save multiple payout bank accounts per business.
+- [x] Soft-delete saved payout bank accounts.
+- [x] Set exactly one default payout bank account per business.
+- [x] Process payouts through the central Optimus-owned Nomba sub-account.
+- [x] Debit Optimus business ledger idempotently for payouts.
+- [x] Reverse payout ledger debit when Nomba clearly rejects the transfer.
+- [x] Reconcile payout success, failure, and refund statuses from Nomba webhooks.
+- [ ] Add scheduled payout requery for long-running pending payouts.
+- [ ] Add DB-level per-business balance locking for simultaneous payout requests.
+- [ ] Add dashboard controls for payout retries and failure review.
+
 ## 18. Add Tests
 
 - [ ] API key generation and hashing.
@@ -271,7 +289,7 @@ Renewal payment:
 - [ ] Business ownership and API key resolution.
 - [ ] Ledger credit/debit idempotency.
 - [ ] Webhook signature verification.
-- [ ] Idempotent webhook processing.
+- [x] Idempotent webhook processing.
 - [ ] First payment activation.
 - [ ] Renewal scheduler due-subscription selection.
 - [ ] Renewal tokenized charge job.

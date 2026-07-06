@@ -14,6 +14,8 @@ export interface NombaTransactionVerificationData extends Record<
   status?: string;
   amount?: string;
   currency?: string;
+  id?: string;
+  transactionId?: string;
   orderReference?: string;
   tokenKey?: string;
   customerId?: string | number;

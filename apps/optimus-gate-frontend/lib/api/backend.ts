@@ -29,7 +29,7 @@ export type BackendMutationResult<T> =
   | BackendFailure;
 
 type BackendFetchOptions = {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "DELETE" | "GET" | "PATCH" | "POST";
   body?: unknown;
   tags?: string[];
   revalidate?: number;

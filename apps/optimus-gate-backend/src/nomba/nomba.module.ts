@@ -4,7 +4,9 @@ import { nombaProviders } from './nomba.providers';
 import { NombaAuthService } from './nomba-auth.service';
 import { NombaCheckoutService } from './nomba-checkout.service';
 import { NombaHttpService } from './nomba-http.service';
+import { NombaRefundService } from './nomba-refund.service';
 import { NombaTransactionService } from './nomba-transaction.service';
+import { NombaTransferService } from './nomba-transfer.service';
 import { NombaWebhookService } from './nomba-webhook.service';
 
 @Module({
@@ -14,9 +16,17 @@ import { NombaWebhookService } from './nomba-webhook.service';
     NombaAuthService,
     NombaHttpService,
     NombaCheckoutService,
+    NombaRefundService,
     NombaTransactionService,
+    NombaTransferService,
     NombaWebhookService,
   ],
-  exports: [NombaCheckoutService, NombaTransactionService, NombaWebhookService],
+  exports: [
+    NombaCheckoutService,
+    NombaRefundService,
+    NombaTransactionService,
+    NombaTransferService,
+    NombaWebhookService,
+  ],
 })
 export class NombaModule {}

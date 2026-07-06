@@ -90,9 +90,40 @@ export type PayoutRecord = {
   batch: string;
   account: string;
   amount: number;
+  currency: string;
   entries: number;
   eta: string;
   status: string;
+  providerReference: string;
+  nombaTransactionId?: string | null;
+  bankAccount?: PayoutBankAccountSnapshot | null;
+  failureReason?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type BankRecord = {
+  code: string;
+  name: string;
+};
+
+export type PayoutBankAccountSnapshot = {
+  id?: string;
+  bankCode?: string;
+  bankName?: string | null;
+  accountNumber?: string;
+  accountName?: string;
+};
+
+export type PayoutBankAccountRecord = {
+  id: string;
+  bankCode: string;
+  bankName?: string | null;
+  accountNumber: string;
+  accountName: string;
+  isDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type SubaccountRecord = {

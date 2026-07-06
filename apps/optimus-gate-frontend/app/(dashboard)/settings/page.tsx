@@ -1,5 +1,13 @@
-import { KeyRound, LockKeyhole, RadioTower, ShieldCheck } from "lucide-react";
+import {
+  KeyRound,
+  LockKeyhole,
+  RadioTower,
+  ShieldCheck,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { Suspense } from "react";
+import { ActionDialog } from "@/components/dashboard/ActionDialog";
 import { AnimatedGrid } from "@/components/dashboard/AnimatedPage";
 import { CreateApiKeyForm } from "@/components/dashboard/forms/CreateApiKeyForm";
 import { MetricCard } from "@/components/dashboard/MetricCard";
@@ -14,8 +22,18 @@ import {
   SurfaceSkeleton,
 } from "@/components/dashboard/Skeletons";
 import { Surface } from "@/components/dashboard/Surface";
-import { getApiKeys } from "@/lib/api/dashboard";
-import type { ApiKeyRecord } from "@/lib/api/types";
+import { Button } from "@/components/ui/button";
+import { PayoutBankAccountForm } from "@/components/payouts/PayoutBankAccountForm";
+import {
+  deletePayoutBankAccountAction,
+  setDefaultPayoutBankAccountAction,
+} from "@/lib/api/actions";
+import {
+  getApiKeys,
+  getPayoutBankAccounts,
+  getPayoutBanks,
+} from "@/lib/api/dashboard";
+import type { ApiKeyRecord, PayoutBankAccountRecord } from "@/lib/api/types";
 
 export const metadata = {
   title: "Settings",
@@ -32,21 +50,13 @@ export default function SettingsPage() {
         <SettingsMetrics />
       </Suspense>
 
-      <div className="grid min-w-0 gap-4 items-start xl:grid-cols-[minmax(0,1fr)_minmax(24rem,28rem)]">
-        <Suspense fallback={<SurfaceSkeleton />}>
-          <ApiKeysTable />
-        </Suspense>
+      <Suspense fallback={<SurfaceSkeleton />}>
+        <ApiKeysTable />
+      </Suspense>
 
-        <Surface
-          title="Create API key"
-          description="Calls the backend /api-keys endpoint with your current session."
-          className="min-w-0"
-        >
-          <div className="p-4">
-            <CreateApiKeyForm />
-          </div>
-        </Surface>
-      </div>
+      <Suspense fallback={<SurfaceSkeleton />}>
+        <PayoutBankAccountsTable />
+      </Suspense>
     </PageShell>
   );
 }
@@ -85,6 +95,83 @@ async function SettingsMetrics() {
         tone="amber"
       />
     </AnimatedGrid>
+  );
+}
+
+async function PayoutBankAccountsTable() {
+  const [accounts, banks] = await Promise.all([
+    getPayoutBankAccounts(),
+    getPayoutBanks(),
+  ]);
+  const columns: OperationsColumn<PayoutBankAccountRecord>[] = [
+    {
+      key: "accountName",
+      header: "Account",
+      render: (row) => (
+        <div className="min-w-0">
+          <p className="font-semibold text-black">{row.accountName}</p>
+          <p className="text-xs text-zinc-500">
+            {row.bankName ?? row.bankCode} · {row.accountNumber}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "isDefault",
+      header: "Default",
+      render: (row) => (
+        <StatusCell status={row.isDefault ? "default" : "saved"} />
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (row) => (
+        <div className="flex flex-wrap items-center gap-2">
+          {!row.isDefault && (
+            <form action={setDefaultPayoutBankAccountAction}>
+              <input type="hidden" name="bankAccountId" value={row.id} />
+              <Button variant="outline" size="sm" type="submit">
+                <Star className="size-3.5" />
+                Default
+              </Button>
+            </form>
+          )}
+          <form action={deletePayoutBankAccountAction}>
+            <input type="hidden" name="bankAccountId" value={row.id} />
+            <Button variant="destructive" size="sm" type="submit">
+              <Trash2 className="size-3.5" />
+              Delete
+            </Button>
+          </form>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <Surface
+      title="Payout bank accounts"
+      description="Saved bank accounts are available on the payout page."
+      className="min-w-0"
+      action={
+        <ActionDialog
+          triggerLabel="Add bank"
+          title="Add payout bank"
+          description="Verify a Nigerian bank account before saving it."
+          closeOnOutsideInteract={false}
+        >
+          <PayoutBankAccountForm banks={banks} />
+        </ActionDialog>
+      }
+    >
+      <OperationsTable
+        rows={accounts}
+        columns={columns}
+        emptyTitle="No payout bank accounts yet"
+        emptyDescription="Add a verified Nigerian bank account for business payouts."
+      />
+    </Surface>
   );
 }
 
@@ -130,6 +217,15 @@ async function ApiKeysTable() {
       title="API keys"
       description="Fetched from the backend /api-keys endpoint."
       className="min-w-0"
+      action={
+        <ActionDialog
+          triggerLabel="Create key"
+          title="Create API key"
+          description="New secrets are shown once."
+        >
+          <CreateApiKeyForm />
+        </ActionDialog>
+      }
     >
       <OperationsTable
         rows={keys}

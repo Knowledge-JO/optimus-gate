@@ -51,6 +51,64 @@ describe('NombaWebhookService', () => {
     ).not.toThrow();
   });
 
+  it('generates the same signature as Nomba script for the redacted sample payload', () => {
+    const sampleService = new NombaWebhookService({
+      accountId: 'account-id',
+      baseUrl: 'https://sandbox.nomba.com',
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      subAccountId: 'sub-account-id',
+      webhookSecret: 'sampleSecret',
+    });
+    const samplePayload = {
+      event_type: 'payment_success',
+      requestId: '45f2dc2d-d559-4773-bba3-2XXXXXXXXXX',
+      data: {
+        merchant: {
+          walletId: '6756ff80aafe04XXXXXXXXXX',
+          walletBalance: 6052,
+          userId: 'b7b10e81-**-**-**-f4e23a132bbf',
+        },
+        terminal: {},
+        transaction: {
+          aliasAccountNumber: '5343270516',
+          fee: 5,
+          sessionId:
+            'IFAP-TRANSFER-46501-e0339485-1a2f-4b43-9bd5-XXXXXXXXXX',
+          type: 'vact_transfer',
+          transactionId:
+            'API-VACT_TRA-B7B10-0435b274-807a-4bc7-8abe-9XXXXXXXXXX',
+          aliasAccountName: 'SAMPLE/JOHN DOE',
+          responseCode: '',
+          originatingFrom: 'api',
+          transactionAmount: 10,
+          narration: 'John Does Transfer 10.00 To SAMPLE/JOHN DOE - Nomba',
+          time: '2025-09-29T10:51:44Z',
+          aliasAccountReference: 'sampleAccountReference',
+          aliasAccountType: 'VIRTUAL',
+        },
+        customer: {
+          bankCode: '090645',
+          senderName: 'John Does',
+          bankName: 'Nombank',
+          accountNumber: '0000000000',
+        },
+      },
+    };
+
+    expect(sampleService.generateSignature(samplePayload, timestamp)).toBe(
+      'zj2S3DjHKtaQmQMn6Njm0RoFTG6WNi3ObogGyFE5xHA=',
+    );
+  });
+
+  it('matches Nomba script case-insensitive signature comparison', () => {
+    const signature = service.generateSignature(payload, timestamp);
+
+    expect(() =>
+      service.verifySignature(payload, signature.toLowerCase(), timestamp),
+    ).not.toThrow();
+  });
+
   it('rejects invalid signatures', () => {
     expect(() =>
       service.verifySignature(payload, 'invalid-signature', timestamp),

@@ -20,6 +20,21 @@ export class NombaWebhookController {
     @Headers('nomba-sig-value') signatureValue?: string,
     @Headers('nomba-timestamp') timestamp?: string,
   ) {
+    console.log('[Nomba webhook] Received webhook', {
+      eventType:
+        this.toSafeString(payload.event_type) ??
+        this.toSafeString(payload.eventType) ??
+        this.toSafeString(payload.type) ??
+        'unknown',
+      requestId:
+        this.toSafeString(payload.requestId) ??
+        this.toSafeString(payload.request_id),
+      hasNombaSignature: Boolean(signature),
+      hasNombaSigValue: Boolean(signatureValue),
+      hasNombaTimestamp: Boolean(timestamp),
+      payload,
+    });
+
     this.nombaWebhookService.verifySignature(
       payload,
       signature ?? signatureValue,

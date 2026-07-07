@@ -62,8 +62,11 @@ export class NombaWebhookController {
       return { received: true, duplicate: true };
     }
 
-    if (event.orderReference) {
-      await this.billingService.verifyCheckoutOrder(event.orderReference);
+    if (event.orderReference && checkoutOrder) {
+      await this.billingService.verifyCheckoutOrder(
+        event.orderReference,
+        payload,
+      );
     } else if (eventType.startsWith('payout_')) {
       await this.payoutsService.handleNombaPayoutWebhook(eventType, payload);
     }

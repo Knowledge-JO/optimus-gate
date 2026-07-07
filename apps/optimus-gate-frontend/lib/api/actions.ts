@@ -72,6 +72,41 @@ const createPayoutSchema = z.object({
   idempotencyKey: z.string().max(160).optional(),
 });
 
+const cancelSubscriptionSchema = z.object({
+  subscriptionId: z.string().uuid("Subscription id is invalid"),
+  cancelAtPeriodEnd: z
+    .union([z.literal("on"), z.literal("true"), z.literal("false")])
+    .optional(),
+});
+
+const createRefundSchema = z
+  .object({
+    paymentAttemptId: z.string().uuid("Transaction id is invalid").optional().or(z.literal("")),
+    providerReference: z.string().trim().optional(),
+    amount: z.string().trim().optional(),
+    reason: z.string().max(255, "Reason must be 255 characters or less").optional(),
+    accountNumber: z
+      .string()
+      .regex(/^\d{10}$/, "Enter a 10 digit account number")
+      .optional()
+      .or(z.literal("")),
+    bankCode: z.string().trim().optional(),
+    idempotencyKey: z.string().max(160).optional(),
+  })
+  .refine((data) => data.paymentAttemptId || data.providerReference, {
+    message: "Select a transaction or enter a payment reference.",
+    path: ["paymentAttemptId"],
+  })
+  .refine(
+    (data) =>
+      (!data.accountNumber && !data.bankCode) ||
+      Boolean(data.accountNumber && data.bankCode),
+    {
+      message: "Provide both account number and bank code.",
+      path: ["accountNumber"],
+    },
+  );
+
 export async function createPlanAction(
   _state: MutationState,
   formData: FormData,
@@ -386,6 +421,78 @@ export async function createPayoutAction(
   revalidateTag(apiTags.payouts, "max");
   revalidateTag(apiTags.stats, "max");
   return { status: "success", message: "Payout request submitted." };
+}
+
+export async function cancelSubscriptionAction(
+  formData: FormData,
+): Promise<MutationState> {
+  const parsed = cancelSubscriptionSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return validationError(parsed.error.flatten().fieldErrors);
+  }
+
+  const result = await backendMutation(
+    `/billing/subscriptions/${parsed.data.subscriptionId}/cancel`,
+    {
+      method: "POST",
+      body: {
+        cancelAtPeriodEnd:
+          parsed.data.cancelAtPeriodEnd === undefined
+            ? true
+            : parsed.data.cancelAtPeriodEnd === "on" ||
+              parsed.data.cancelAtPeriodEnd === "true",
+      },
+    },
+  );
+
+  if (!result.ok) {
+    return {
+      status: "error",
+      message: result.error.message,
+    };
+  }
+
+  revalidateTag(apiTags.stats, "max");
+  revalidateTag(apiTags.subscribers, "max");
+  revalidateTag(apiTags.subscriptions, "max");
+  return { status: "success", message: "Subscription cancellation saved." };
+}
+
+export async function createRefundAction(
+  _state: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const parsed = createRefundSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return validationError(parsed.error.flatten().fieldErrors);
+  }
+
+  const result = await backendMutation("/billing/refunds", {
+    method: "POST",
+    body: {
+      paymentAttemptId: parsed.data.paymentAttemptId || undefined,
+      providerReference: parsed.data.providerReference || undefined,
+      amount: parsed.data.amount || undefined,
+      reason: parsed.data.reason || undefined,
+      accountNumber: parsed.data.accountNumber || undefined,
+      bankCode: parsed.data.bankCode || undefined,
+      idempotencyKey: parsed.data.idempotencyKey || undefined,
+    },
+  });
+
+  if (!result.ok) {
+    return {
+      status: "error",
+      message: result.error.message,
+    };
+  }
+
+  revalidateTag(apiTags.stats, "max");
+  revalidateTag(apiTags.transactions, "max");
+  revalidateTag(apiTags.refunds, "max");
+  return { status: "success", message: "Refund request submitted." };
 }
 
 function validationError(

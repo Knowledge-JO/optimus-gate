@@ -21,4 +21,8 @@ export class UsersService {
   updatePassword(userId: string, passwordHash: string): Promise<void> {
     return this.usersRepository.updatePassword(userId, passwordHash);
   }
+
+  markEmailVerified(userId: string): Promise<void> {
+    return this.usersRepository.markEmailVerified(userId);
+  }
 }

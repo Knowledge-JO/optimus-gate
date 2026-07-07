@@ -81,6 +81,7 @@ export class ApiKeyOrJwtAuthGuard implements CanActivate {
         email: user.email,
         role: user.role,
         permissions: user.permissions,
+        isEmailVerified: user.isEmailVerified,
       };
       return true;
     } catch {

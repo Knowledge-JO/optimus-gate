@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
 import { DRIZZLE_DB } from '../database/database.constants';
 import {
+  businessPayoutBankAccounts,
+  businessPayouts,
   businessCustomers,
   customerPaymentMethods,
   ledgerEntries,
@@ -26,6 +28,9 @@ type BusinessCustomer = typeof businessCustomers.$inferSelect;
 type NombaCheckoutOrder = typeof nombaCheckoutOrders.$inferSelect;
 type NombaWebhookEvent = typeof nombaWebhookEvents.$inferSelect;
 type LedgerEntry = typeof ledgerEntries.$inferSelect;
+type BusinessPayoutBankAccount =
+  typeof businessPayoutBankAccounts.$inferSelect;
+type BusinessPayout = typeof businessPayouts.$inferSelect;
 
 @Injectable()
 export class BillingRepository {
@@ -122,6 +127,32 @@ export class BillingRepository {
       .from(ledgerEntries)
       .where(eq(ledgerEntries.businessId, businessId))
       .orderBy(desc(ledgerEntries.createdAt));
+  }
+
+  listPayoutBankAccountsForBusiness(
+    businessId: string,
+  ): Promise<BusinessPayoutBankAccount[]> {
+    return this.db
+      .select()
+      .from(businessPayoutBankAccounts)
+      .where(
+        and(
+          eq(businessPayoutBankAccounts.businessId, businessId),
+          isNull(businessPayoutBankAccounts.deletedAt),
+        ),
+      )
+      .orderBy(
+        desc(businessPayoutBankAccounts.isDefault),
+        desc(businessPayoutBankAccounts.createdAt),
+      );
+  }
+
+  listBusinessPayoutsForBusiness(businessId: string): Promise<BusinessPayout[]> {
+    return this.db
+      .select()
+      .from(businessPayouts)
+      .where(eq(businessPayouts.businessId, businessId))
+      .orderBy(desc(businessPayouts.createdAt));
   }
 
   createSubscription(
@@ -336,6 +367,48 @@ export class BillingRepository {
     input: typeof customerPaymentMethods.$inferInsert,
   ): Promise<CustomerPaymentMethod[]> {
     return this.db.insert(customerPaymentMethods).values(input).returning();
+  }
+
+  async upsertPaymentMethodByTokenKey(
+    input: typeof customerPaymentMethods.$inferInsert,
+  ): Promise<CustomerPaymentMethod> {
+    const [paymentMethod] = await this.db
+      .insert(customerPaymentMethods)
+      .values(input)
+      .onConflictDoUpdate({
+        target: [
+          customerPaymentMethods.businessId,
+          customerPaymentMethods.tokenKey,
+        ],
+        set: {
+          businessCustomerId: input.businessCustomerId,
+          userId: input.userId,
+          customerId: input.customerId,
+          customerEmail: input.customerEmail,
+          isDefault: input.isDefault ?? false,
+          metadata: input.metadata ?? {},
+          revokedAt: null,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+
+    return paymentMethod;
+  }
+
+  unsetDefaultPaymentMethods(businessId: string, customerId: string) {
+    return this.db
+      .update(customerPaymentMethods)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(customerPaymentMethods.businessId, businessId),
+          eq(customerPaymentMethods.customerId, customerId),
+          eq(customerPaymentMethods.isDefault, true),
+          isNull(customerPaymentMethods.revokedAt),
+        ),
+      )
+      .returning();
   }
 
   findDefaultPaymentMethod(

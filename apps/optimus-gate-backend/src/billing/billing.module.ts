@@ -5,6 +5,7 @@ import { BusinessesModule } from '../businesses/businesses.module';
 import { DatabaseModule } from '../database/database.module';
 import { LedgerModule } from '../ledger/ledger.module';
 import { NombaModule } from '../nomba/nomba.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PayoutsRepository } from '../payouts/payouts.repository';
 import { PayoutsService } from '../payouts/payouts.service';
 import { QueuesModule } from '../queues/queues.module';
@@ -26,6 +27,7 @@ import { RenewalProcessor } from './processors/renewal.processor';
     JwtModule.register({}),
     LedgerModule,
     NombaModule,
+    NotificationsModule,
     QueuesModule,
     UsersModule,
   ],

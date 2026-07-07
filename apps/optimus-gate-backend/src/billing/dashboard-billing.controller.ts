@@ -74,6 +74,11 @@ export class DashboardBillingController {
     return this.billingService.listDashboardTransactions(user.id);
   }
 
+  @Get('notifications')
+  listNotifications(@CurrentUser() user: AuthenticatedUser) {
+    return this.billingService.listDashboardNotifications(user.id);
+  }
+
   @Get('refunds')
   listRefunds(@CurrentUser() user: AuthenticatedUser) {
     return this.billingService.listDashboardRefunds(user.id);

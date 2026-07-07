@@ -28,11 +28,14 @@ export type CheckoutLinkRecord = {
 
 export type SubscriberRecord = {
   id: string;
+  subscriptionId?: string;
   name: string;
   email: string;
   plan: string;
   lifetimeValue: number;
   paymentMethod: string;
+  cancelAtPeriodEnd?: boolean;
+  canceledAt?: string | null;
   status: string;
 };
 
@@ -43,6 +46,8 @@ export type SubscriptionRecord = {
   plan: string;
   amount: number;
   nextCharge: string;
+  cancelAtPeriodEnd?: boolean;
+  canceledAt?: string | null;
   attempts: number;
   status: string;
 };
@@ -75,13 +80,23 @@ export type TransactionRecord = {
   status: string;
 };
 
+export type NotificationRecord = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  read: boolean;
+};
+
 export type RefundRecord = {
   id: string;
   reference: string;
   transaction: string;
+  paymentReference?: string;
   customer: string;
   reason: string;
   amount: number;
+  currency?: string;
   status: string;
 };
 

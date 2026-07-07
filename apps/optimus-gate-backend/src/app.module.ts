@@ -28,9 +28,43 @@ function getTrackerValue(value: unknown) {
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
+        NODE_ENV: Joi.string()
+          .valid('development', 'production', 'test')
+          .optional(),
         DATABASE_URL: Joi.string().optional(),
         JWT_ACCESS_SECRET: Joi.string().optional(),
         JWT_REFRESH_SECRET: Joi.string().optional(),
+        SMTP_HOST: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().optional(),
+        }),
+        SMTP_PORT: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.number().port().required(),
+          otherwise: Joi.number().port().optional(),
+        }),
+        SMTP_USER: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().optional(),
+        }),
+        SMTP_PASSWORD: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().optional(),
+        }),
+        SMTP_FROM_EMAIL: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().required(),
+          otherwise: Joi.string().optional(),
+        }),
+        SMTP_SECURE: Joi.boolean().optional(),
+        APP_FRONTEND_URL: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().uri().required(),
+          otherwise: Joi.string().uri().optional(),
+        }),
         CORS_ALLOWED_ORIGINS: Joi.string().optional(),
         CORS_ALLOWED_HEADERS: Joi.string().optional(),
         CORS_EXPOSED_HEADERS: Joi.string().optional(),

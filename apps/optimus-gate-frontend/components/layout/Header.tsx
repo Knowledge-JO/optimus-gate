@@ -5,8 +5,19 @@ import { Input } from "@/components/ui/input";
 import { TestModeChip } from "./TestModeChip";
 import type { AuthUser } from "@/lib/auth/types";
 import { NotificationPopover } from "../notification/NotificationPopover";
+import type { NotificationRecord } from "@/lib/api/types";
 
-export function Header({ user }: { user: AuthUser }) {
+export function Header({
+  user,
+  environmentMode,
+  environmentSwitchUrl,
+  notifications,
+}: {
+  user: AuthUser;
+  environmentMode: "sandbox" | "live";
+  environmentSwitchUrl: string;
+  notifications: NotificationRecord[];
+}) {
   // const displayName =
   //   [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
   //   user.email;
@@ -38,8 +49,11 @@ export function Header({ user }: { user: AuthUser }) {
             </p> */}
             <p className="text-sm font-bold text-zinc-500">{user.role}</p>
           </div>
-          <TestModeChip />
-          <NotificationPopover />
+          <TestModeChip
+            mode={environmentMode}
+            switchUrl={environmentSwitchUrl}
+          />
+          <NotificationPopover initialNotifications={notifications} />
         </div>
       </div>
     </header>

@@ -11,45 +11,16 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { IoMdNotificationsOutline } from "react-icons/io";
 import { FilterTabs } from "./NotificationFilterTabs";
+import type { NotificationRecord } from "@/lib/api/types";
 
-type Notification = {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  read: boolean;
-};
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1",
-    title: "Payout processed",
-    description:
-      "Your payout of ₦245,000 has been sent to your default account. It should reflect within 24 hours depending on your bank's processing time and any additional verification steps required.",
-    date: "Jul 3",
-    read: false,
-  },
-  {
-    id: "2",
-    title: "New subscription created",
-    description:
-      "Adebayo T. subscribed to the Pro plan. Billing will begin on the next cycle and a receipt has been sent to their email address.",
-    date: "Jul 2",
-    read: true,
-  },
-  {
-    id: "3",
-    title: "Checkout link expired",
-    description: "The checkout link for 'Team Plan – Q3' has expired.",
-    date: "Jun 30",
-    read: true,
-  },
-];
-
-export function NotificationPopover() {
+export function NotificationPopover({
+  initialNotifications,
+}: {
+  initialNotifications: NotificationRecord[];
+}) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] =
-    useState<Notification[]>(MOCK_NOTIFICATIONS);
+    useState<NotificationRecord[]>(initialNotifications);
   const [tab, setTab] = useState<"unread" | "all">("unread");
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -119,7 +90,9 @@ export function NotificationPopover() {
                   <p className="mt-0.5 line-clamp-3 text-xs leading-relaxed text-zinc-500">
                     {n.description}
                   </p>
-                  <p className="mt-1 text-[11px] text-zinc-400">{n.date}</p>
+                  <p className="mt-1 text-[11px] text-zinc-400">
+                    {formatNotificationDate(n.date)}
+                  </p>
                 </div>
               </Link>
             ))
@@ -138,4 +111,17 @@ export function NotificationPopover() {
       </PopoverContent>
     </Popover>
   );
+}
+
+function formatNotificationDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(date);
 }

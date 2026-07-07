@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "customer_payment_methods_business_token_unique" ON "customer_payment_methods" USING btree ("business_id","token_key");

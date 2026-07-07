@@ -17,6 +17,7 @@ import {
   type RecordDetailField,
 } from "./RecordDetailsDialog";
 import { PendingSelectCell } from "@/components/dashboard/PendingSelectCell";
+import { CancelSubscriptionAction } from "@/components/subscription/CancelSubscriptionAction";
 
 type InteractiveTableProps<T extends { id: string; status: string }> = {
   columns: OperationsColumn<T>[];
@@ -197,6 +198,17 @@ export function SubscriptionsRecordTable({
       header: "Status",
       render: (row) => <StatusCell status={row.status} />,
     },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (row) => (
+        <CancelSubscriptionAction
+          subscriptionId={row.id}
+          disabled={row.status === "canceled" || row.cancelAtPeriodEnd}
+        />
+      ),
+    },
   ];
 
   return (
@@ -214,6 +226,14 @@ export function SubscriptionsRecordTable({
         detail("Plan", row.plan),
         detail("Amount", formatNaira(row.amount)),
         detail("Next charge", row.nextCharge),
+        detail(
+          "Cancellation",
+          row.status === "canceled"
+            ? "Canceled"
+            : row.cancelAtPeriodEnd
+              ? "Scheduled"
+              : "Not scheduled",
+        ),
         detail("Attempts", row.attempts.toLocaleString()),
         detail("Record ID", row.id, row.id),
       ]}
@@ -248,6 +268,18 @@ export function SubscribersRecordTable({
       header: "Status",
       render: (row) => <StatusCell status={row.status} />,
     },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (row) =>
+        row.subscriptionId ? (
+          <CancelSubscriptionAction
+            subscriptionId={row.subscriptionId}
+            disabled={row.status === "canceled" || row.cancelAtPeriodEnd}
+          />
+        ) : null,
+    },
   ];
 
   return (
@@ -264,6 +296,14 @@ export function SubscribersRecordTable({
         detail("Email", row.email, row.email),
         detail("Plan", row.plan),
         detail("Payment method", row.paymentMethod),
+        detail(
+          "Cancellation",
+          row.status === "canceled"
+            ? "Canceled"
+            : row.cancelAtPeriodEnd
+              ? "Scheduled"
+              : "Not scheduled",
+        ),
         detail("Lifetime value", formatNaira(row.lifetimeValue)),
         detail("Subscriber ID", row.id, row.id),
       ]}

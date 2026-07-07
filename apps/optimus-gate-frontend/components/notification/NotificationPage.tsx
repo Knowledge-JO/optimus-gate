@@ -5,50 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { FilterTabs } from "./NotificationFilterTabs";
+import type { NotificationRecord } from "@/lib/api/types";
 
-export type Notification = {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  read: boolean;
-};
-
-export const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1",
-    title: "Payout processed",
-    description:
-      "Your payout of ₦245,000 has been sent to your default account. It should reflect within 24 hours depending on your bank's processing time and any additional verification steps required. If you don't see it after 48 hours, please reach out to support with your payout reference.",
-    date: "Jul 3",
-    read: false,
-  },
-  {
-    id: "2",
-    title: "New subscription created",
-    description:
-      "Adebayo T. subscribed to the Pro plan. Billing will begin on the next cycle and a receipt has been sent to their email address.",
-    date: "Jul 2",
-    read: true,
-  },
-  {
-    id: "3",
-    title: "Checkout link expired",
-    description:
-      "The checkout link for 'Team Plan – Q3' has expired. Create a new link from the Plans page if you still need to share it with customers.",
-    date: "Jun 30",
-    read: true,
-  },
-];
-
-export function NotificationPage() {
+export function NotificationPage({
+  initialNotifications,
+}: {
+  initialNotifications: NotificationRecord[];
+}) {
   const [tab, setTab] = useState<"unread" | "all">("all");
+  const [notifications, setNotifications] =
+    useState<NotificationRecord[]>(initialNotifications);
   const [selected, setSelected] = useState<string[]>([]);
 
   const filtered =
     tab === "unread"
-      ? MOCK_NOTIFICATIONS.filter((n) => !n.read)
-      : MOCK_NOTIFICATIONS;
+      ? notifications.filter((notification) => !notification.read)
+      : notifications;
 
   const allChecked = filtered.length > 0 && selected.length === filtered.length;
 
@@ -62,13 +34,26 @@ export function NotificationPage() {
     );
   };
 
-  const selectedAreRead = MOCK_NOTIFICATIONS.filter(
+  const selectedAreRead = notifications.filter(
     (n) => selected.includes(n.id) && n.read,
   ).length;
   const markLabel =
     selected.length > 0 && selectedAreRead === selected.length
       ? `Mark ${selected.length} as unread`
       : `Mark ${selected.length} as read`;
+  const toggleSelectedReadState = () => {
+    const shouldMarkUnread =
+      selected.length > 0 && selectedAreRead === selected.length;
+
+    setNotifications((current) =>
+      current.map((notification) =>
+        selected.includes(notification.id)
+          ? { ...notification, read: !shouldMarkUnread }
+          : notification,
+      ),
+    );
+    setSelected([]);
+  };
 
   return (
     <div className="flex flex-col gap-4 px-2 sm:px-0">
@@ -87,6 +72,7 @@ export function NotificationPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={toggleSelectedReadState}
             className="h-8 border-black/10 text-xs font-medium text-zinc-600 hover:text-black"
           >
             {markLabel}
@@ -136,12 +122,12 @@ export function NotificationPage() {
                   </p>
                 </div>
                 <span className="text-xs text-zinc-500 sm:hidden">
-                  {n.date}
+                  {formatNotificationDate(n.date)}
                 </span>
               </div>
 
               <span className="hidden whitespace-nowrap pr-2 text-xs text-zinc-500 sm:block">
-                {n.date}
+                {formatNotificationDate(n.date)}
               </span>
             </div>
           ))
@@ -153,4 +139,17 @@ export function NotificationPage() {
       </p>
     </div>
   );
+}
+
+function formatNotificationDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(date);
 }

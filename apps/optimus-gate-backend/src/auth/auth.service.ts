@@ -12,10 +12,12 @@ import { randomBytes, randomUUID } from 'crypto';
 import { BusinessesService } from '../businesses/businesses.service';
 import { DRIZZLE_DB } from '../database/database.constants';
 import {
+  emailVerificationTokens,
   passwordResetTokens,
   refreshTokens,
 } from '../database/schemas/auth.schema';
 import type { DrizzleDatabase } from '../database/database.types';
+import { NotificationsService } from '../notifications/notifications.service';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -40,6 +42,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly businessesService: BusinessesService,
+    private readonly notificationsService: NotificationsService,
     @Inject(DRIZZLE_DB) private readonly db: DrizzleDatabase,
   ) {}
 
@@ -58,7 +61,13 @@ export class AuthService {
       lastName: user.lastName,
     });
 
-    return this.issueTokenPair(user, context);
+    const verificationToken = await this.createAndSendEmailVerification(user);
+    const result = await this.issueTokenPair(user, context);
+
+    return {
+      ...result,
+      ...(process.env.NODE_ENV !== 'production' ? { verificationToken } : {}),
+    };
   }
 
   async login(dto: LoginDto, context: AuthRequestContext) {
@@ -155,6 +164,42 @@ export class AuthService {
     return { message: 'Password has been reset' };
   }
 
+  async resendEmailVerification(user: AuthenticatedUser) {
+    const fullUser = await this.usersService.findById(user.id);
+
+    if (!fullUser) {
+      throw new UnauthorizedException();
+    }
+
+    if (fullUser.isEmailVerified) {
+      return { message: 'Email is already verified' };
+    }
+
+    const verificationToken =
+      await this.createAndSendEmailVerification(fullUser);
+
+    return {
+      message: 'Verification email has been sent',
+      ...(process.env.NODE_ENV !== 'production' ? { verificationToken } : {}),
+    };
+  }
+
+  async confirmEmailVerification(token: string) {
+    const verificationToken = await this.findValidEmailVerificationToken(token);
+
+    if (!verificationToken) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    await this.db
+      .update(emailVerificationTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(emailVerificationTokens.id, verificationToken.id));
+    await this.usersService.markEmailVerified(verificationToken.userId);
+
+    return { message: 'Email has been verified' };
+  }
+
   toPublicUser(user: AuthenticatedUser | User) {
     return {
       id: user.id,
@@ -228,6 +273,47 @@ export class AuthService {
     for (const resetToken of candidates) {
       if (await bcrypt.compare(token, resetToken.tokenHash)) {
         return resetToken;
+      }
+    }
+
+    return undefined;
+  }
+
+  private async createAndSendEmailVerification(user: User) {
+    const verificationToken = this.createOpaqueToken();
+    const verificationTokenId = randomUUID();
+
+    await this.db.insert(emailVerificationTokens).values({
+      id: verificationTokenId,
+      userId: user.id,
+      tokenHash: await bcrypt.hash(verificationToken, 12),
+      expiresAt: this.fromNowDays(1),
+    });
+
+    await this.notificationsService.sendEmailVerification({
+      email: user.email,
+      token: verificationToken,
+      userId: user.id,
+      idempotencyKey: `email-verification/${user.id}/${verificationTokenId}`,
+    });
+
+    return verificationToken;
+  }
+
+  private async findValidEmailVerificationToken(token: string) {
+    const candidates = await this.db
+      .select()
+      .from(emailVerificationTokens)
+      .where(
+        and(
+          isNull(emailVerificationTokens.usedAt),
+          gt(emailVerificationTokens.expiresAt, new Date()),
+        ),
+      );
+
+    for (const verificationToken of candidates) {
+      if (await bcrypt.compare(token, verificationToken.tokenHash)) {
+        return verificationToken;
       }
     }
 

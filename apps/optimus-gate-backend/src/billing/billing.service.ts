@@ -10,13 +10,18 @@ import { ApiKeysService } from '../api-keys/api-keys.service';
 import type { AuthenticatedApiKey } from '../api-keys/api-keys.types';
 import { BusinessesService } from '../businesses/businesses.service';
 import { LedgerService } from '../ledger/ledger.service';
-import { NombaCheckoutService } from '../nomba/nomba-checkout.service';
+import {
+  NombaCheckoutService,
+  type NombaTokenizedCardData,
+} from '../nomba/nomba-checkout.service';
 import { NombaRefundService } from '../nomba/nomba-refund.service';
 import {
   NombaTransactionService,
   type NombaTransactionVerificationData,
 } from '../nomba/nomba-transaction.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { RENEWAL_QUEUE } from '../queues/queues.constants';
+import { UsersService } from '../users/users.service';
 import { BillingRepository } from './billing.repository';
 import { CancelSubscriptionDto } from './dto/cancel-subscription.dto';
 import { CreatePlanDto } from './dto/create-plan.dto';
@@ -33,6 +38,8 @@ export class BillingService {
     private readonly nombaCheckoutService: NombaCheckoutService,
     private readonly nombaRefundService: NombaRefundService,
     private readonly nombaTransactionService: NombaTransactionService,
+    private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
     @InjectQueue(RENEWAL_QUEUE) private readonly renewalQueue: Queue,
   ) {}
 
@@ -151,6 +158,9 @@ export class BillingService {
         lifetimeValue,
         paymentMethod: hasPaymentMethod ? 'Card on file' : 'No payment method',
         status: currentSubscription?.status ?? 'inactive',
+        subscriptionId: currentSubscription?.id,
+        cancelAtPeriodEnd: currentSubscription?.cancelAtPeriodEnd ?? false,
+        canceledAt: currentSubscription?.canceledAt?.toISOString() ?? null,
       };
     });
   }
@@ -213,6 +223,123 @@ export class BillingService {
     });
   }
 
+  async listDashboardNotifications(userId: string) {
+    const data = await this.getDashboardDataset(userId);
+    const notifications = [
+      ...data.paymentAttempts.map((attempt) => {
+        const subscription = data.subscriptions.find(
+          (item) => item.id === attempt.subscriptionId,
+        );
+        const customer = subscription
+          ? data.customers.find(
+              (item) => item.id === subscription.businessCustomerId,
+            )
+          : undefined;
+        const plan = subscription
+          ? data.plans.find((item) => item.id === subscription.planId)
+          : undefined;
+        const amount = this.formatCurrency(
+          this.toNumber(attempt.amount),
+          attempt.currency,
+        );
+        const customerName =
+          customer?.name ?? subscription?.customerEmail ?? 'A customer';
+
+        return {
+          id: `payment-${attempt.id}`,
+          title:
+            attempt.status === 'succeeded'
+              ? 'Payment received'
+              : 'Payment update',
+          description:
+            attempt.status === 'succeeded'
+              ? `${customerName} paid ${amount} for ${plan?.name ?? 'a subscription'}.`
+              : `${customerName}'s payment for ${plan?.name ?? 'a subscription'} is ${attempt.status}.`,
+          date: attempt.createdAt.toISOString(),
+          read: false,
+          createdAt: attempt.createdAt,
+        };
+      }),
+      ...data.subscriptions.map((subscription) => {
+        const plan = data.plans.find((item) => item.id === subscription.planId);
+        const customer = data.customers.find(
+          (item) => item.id === subscription.businessCustomerId,
+        );
+        const customerName = customer?.name ?? subscription.customerEmail;
+
+        return {
+          id: `subscription-${subscription.id}`,
+          title: 'Subscription created',
+          description: `${customerName} subscribed to ${plan?.name ?? 'a plan'}.`,
+          date: subscription.createdAt.toISOString(),
+          read: false,
+          createdAt: subscription.createdAt,
+        };
+      }),
+      ...data.refunds.map((refund) => {
+        const attempt = data.paymentAttempts.find(
+          (item) => item.id === refund.paymentAttemptId,
+        );
+        const subscription = data.subscriptions.find(
+          (item) => item.id === refund.subscriptionId,
+        );
+        const customer = subscription
+          ? data.customers.find(
+              (item) => item.id === subscription.businessCustomerId,
+            )
+          : undefined;
+        const amount = this.formatCurrency(
+          this.toNumber(refund.amount),
+          refund.currency,
+        );
+
+        return {
+          id: `refund-${refund.id}`,
+          title: 'Refund update',
+          description: `${amount} refund for ${customer?.name ?? subscription?.customerEmail ?? 'a customer'} is ${refund.status}. Reference: ${
+            refund.providerReference ?? attempt?.providerReference
+          }.`,
+          date: refund.createdAt.toISOString(),
+          read: false,
+          createdAt: refund.createdAt,
+        };
+      }),
+      ...data.ledgerEntries
+        .filter((entry) => entry.type === 'payout_debit')
+        .map((entry) => {
+          const amount = this.formatCurrency(
+            this.toNumber(entry.amount),
+            entry.currency,
+          );
+
+          return {
+            id: `payout-${entry.id}`,
+            title: 'Payout recorded',
+            description:
+              entry.description ??
+              `${amount} payout was recorded against your available balance.`,
+            date: entry.createdAt.toISOString(),
+            read: false,
+            createdAt: entry.createdAt,
+          };
+        }),
+    ];
+
+    return notifications
+      .sort(
+        (first, second) =>
+          second.createdAt.getTime() - first.createdAt.getTime(),
+      )
+      .slice(0, 50)
+      .map((notification) => ({
+        id: notification.id,
+        title: notification.title,
+        description: notification.description,
+        date: notification.date,
+        read: notification.read,
+      }));
+  }
+
   async listDashboardRefunds(userId: string) {
     const data = await this.getDashboardDataset(userId);
 
@@ -244,26 +371,32 @@ export class BillingService {
     });
   }
 
-  async listDashboardPayouts(userId: string) {
-    const data = await this.getDashboardDataset(userId);
-
-    return data.ledgerEntries
-      .filter((entry) => entry.type === 'payout_debit')
-      .map((entry) => ({
-        id: entry.id,
-        batch: entry.idempotencyKey,
-        account: 'Business settlement',
-        amount: this.toNumber(entry.amount),
-        entries: 1,
-        eta: entry.createdAt.toISOString(),
-        status: 'settled',
-      }));
-  }
-
   async listDashboardSubaccounts(userId: string) {
-    await this.businessesService.getDefaultBusinessForUser(userId);
+    const business =
+      await this.businessesService.getDefaultBusinessForUser(userId);
+    const [bankAccounts, payouts] = await Promise.all([
+      this.billingRepository.listPayoutBankAccountsForBusiness(business.id),
+      this.billingRepository.listBusinessPayoutsForBusiness(business.id),
+    ]);
 
-    return [];
+    return bankAccounts.map((account) => {
+      const received = payouts
+        .filter(
+          (payout) =>
+            payout.bankAccountId === account.id && payout.status === 'succeeded',
+        )
+        .reduce((sum, payout) => sum + this.toNumber(payout.amount), 0);
+
+      return {
+        id: account.id,
+        name: account.accountName,
+        bank: account.bankName ?? account.bankCode,
+        account: this.maskAccount(account.accountNumber),
+        split: account.isDefault ? '100%' : '0%',
+        received,
+        status: account.isDefault ? 'verified' : 'linked',
+      };
+    });
   }
 
   async getOnboardingChecklist(userId: string) {
@@ -712,7 +845,10 @@ export class BillingService {
     );
   }
 
-  async verifyCheckoutOrder(orderReference: string) {
+  async verifyCheckoutOrder(
+    orderReference: string,
+    webhookPayload?: Record<string, unknown>,
+  ) {
     const checkoutOrder =
       await this.billingRepository.findCheckoutOrderByReference(orderReference);
 
@@ -763,6 +899,12 @@ export class BillingService {
       paidAt: new Date(),
     });
 
+    const subscription = checkoutOrder.subscriptionId
+      ? await this.billingRepository.findSubscriptionById(
+          checkoutOrder.subscriptionId,
+        )
+      : undefined;
+
     if (checkoutOrder.subscriptionId) {
       await this.billingRepository.updateSubscription(
         checkoutOrder.subscriptionId,
@@ -772,31 +914,16 @@ export class BillingService {
       );
     }
 
-    if (
-      checkoutOrder.subscriptionId &&
-      verification.data?.tokenKey &&
-      verification.data.orderReference
-    ) {
-      const existingPaymentMethod =
-        await this.billingRepository.findDefaultPaymentMethod(
-          checkoutOrder.businessId,
-          this.toSafeString(verification.data.customerId),
-        );
-
-      if (!existingPaymentMethod) {
-        await this.billingRepository.createPaymentMethod({
-          businessId: checkoutOrder.businessId,
-          businessCustomerId: invoice.businessCustomerId,
-          userId: checkoutOrder.userId,
-          provider: 'nomba',
-          type: 'tokenized_card',
-          tokenKey: verification.data.tokenKey,
-          customerId: this.toSafeString(verification.data.customerId),
-          customerEmail: this.toSafeString(verification.data.customerEmail),
-          isDefault: true,
-          metadata: this.toRecord(verification.data),
-        });
-      }
+    if (subscription) {
+      await this.syncTokenizedPaymentMethods({
+        businessId: checkoutOrder.businessId,
+        businessCustomerId: invoice.businessCustomerId,
+        userId: checkoutOrder.userId,
+        customerId: subscription.customerId,
+        customerEmail: subscription.customerEmail,
+        subscriptionId: subscription.id,
+        webhookPayload,
+      });
     }
 
     await this.ledgerService.creditBusinessAvailable({
@@ -814,6 +941,18 @@ export class BillingService {
       },
       type: 'payment_credit',
     });
+
+    if (subscription) {
+      await this.sendInitialSubscriptionEmails({
+        merchantUserId: checkoutOrder.userId,
+        subscriptionId: subscription.id,
+        planId: subscription.planId,
+        customerEmail: subscription.customerEmail,
+        amount: invoice.amount,
+        currency: invoice.currency,
+        paymentAttemptId: checkoutOrder.paymentAttemptId,
+      });
+    }
 
     return { status: 'succeeded', verification };
   }
@@ -978,6 +1117,14 @@ export class BillingService {
       type: 'renewal_credit',
     });
 
+    await this.sendRenewalReceipt({
+      planName: plan.name,
+      customerEmail: subscription.customerEmail,
+      amount: invoice.amount,
+      currency: invoice.currency,
+      paymentAttemptId: attempt.id,
+    });
+
     return { subscriptionId, status: 'succeeded' };
   }
 
@@ -996,6 +1143,199 @@ export class BillingService {
     }
 
     return dueCancellations.length;
+  }
+
+  private async syncTokenizedPaymentMethods(input: {
+    businessId: string;
+    businessCustomerId: string;
+    userId: string;
+    customerId: string;
+    customerEmail: string;
+    subscriptionId: string;
+    webhookPayload?: Record<string, unknown>;
+  }) {
+    const webhookCard = this.extractWebhookTokenizedCard(input.webhookPayload);
+    const tokenizedCards = await this.fetchTokenizedCardData(
+      input.customerEmail,
+    );
+    const cards = this.mergeTokenizedCards(
+      webhookCard ? [webhookCard] : [],
+      tokenizedCards,
+    );
+    const usableCards = cards.filter((card) =>
+      Boolean(this.toUsableTokenKey(card.tokenKey)),
+    );
+
+    if (!usableCards.length) {
+      return;
+    }
+
+    const defaultCard =
+      this.selectDefaultTokenizedCard(webhookCard, usableCards) ??
+      usableCards[0];
+    let defaultPaymentMethodId: string | undefined;
+
+    await this.billingRepository.unsetDefaultPaymentMethods(
+      input.businessId,
+      input.customerId,
+    );
+
+    for (const card of usableCards) {
+      const tokenKey = this.toUsableTokenKey(card.tokenKey);
+
+      if (!tokenKey) {
+        continue;
+      }
+
+      const isDefault =
+        tokenKey === this.toUsableTokenKey(defaultCard?.tokenKey);
+      const paymentMethod =
+        await this.billingRepository.upsertPaymentMethodByTokenKey({
+          businessId: input.businessId,
+          businessCustomerId: input.businessCustomerId,
+          userId: input.userId,
+          provider: 'nomba',
+          type: 'tokenized_card',
+          tokenKey,
+          customerId: input.customerId,
+          customerEmail: card.customerEmail ?? input.customerEmail,
+          isDefault,
+          metadata: {
+            cardType: card.cardType,
+            cardPan: card.cardPan,
+            tokenExpirationDate: card.tokenExpirationDate,
+            source: 'nomba_tokenized_card_data',
+            webhookCard: webhookCard
+              ? {
+                  cardType: webhookCard.cardType,
+                  cardPan: webhookCard.cardPan,
+                  tokenExpirationDate: webhookCard.tokenExpirationDate,
+                  customerEmail: webhookCard.customerEmail,
+                }
+              : undefined,
+          },
+        });
+
+      if (isDefault) {
+        defaultPaymentMethodId = paymentMethod.id;
+      }
+    }
+
+    if (defaultPaymentMethodId) {
+      await this.billingRepository.updateSubscription(input.subscriptionId, {
+        paymentMethodId: defaultPaymentMethodId,
+      });
+    }
+  }
+
+  private async fetchTokenizedCardData(customerEmail: string) {
+    try {
+      const response = await this.nombaCheckoutService.listTokenizedCardData({
+        customerEmail,
+      });
+
+      if (response.code !== '00') {
+        return [];
+      }
+
+      return response.data?.tokenizedCardDataList ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  private extractWebhookTokenizedCard(
+    payload: Record<string, unknown> | undefined,
+  ): NombaTokenizedCardData | undefined {
+    const data = this.toRecord(payload?.data);
+    const tokenizedCardData = this.toRecord(data.tokenizedCardData);
+    const order = this.toRecord(data.order);
+
+    if (!Object.keys(tokenizedCardData).length && !Object.keys(order).length) {
+      return undefined;
+    }
+
+    const expiryMonth = this.toSafeString(
+      tokenizedCardData.tokenExpiryMonth,
+    );
+    const expiryYear = this.toSafeString(tokenizedCardData.tokenExpiryYear);
+    const tokenExpirationDate =
+      expiryMonth && expiryYear && expiryMonth !== 'N/A' && expiryYear !== 'N/A'
+        ? `${expiryMonth}/${expiryYear}`
+        : undefined;
+
+    return {
+      tokenKey: this.toSafeString(tokenizedCardData.tokenKey),
+      customerEmail: this.toSafeString(order.customerEmail),
+      cardType:
+        this.toSafeString(tokenizedCardData.cardType) ||
+        this.toSafeString(order.cardType),
+      cardPan:
+        this.toSafeString(tokenizedCardData.cardPan) ||
+        this.toSafeString(order.cardLast4Digits),
+      tokenExpirationDate,
+    };
+  }
+
+  private mergeTokenizedCards(
+    first: NombaTokenizedCardData[],
+    second: NombaTokenizedCardData[],
+  ) {
+    const cardsByToken = new Map<string, NombaTokenizedCardData>();
+
+    for (const card of [...first, ...second]) {
+      const tokenKey = this.toUsableTokenKey(card.tokenKey);
+
+      if (!tokenKey) {
+        continue;
+      }
+
+      cardsByToken.set(tokenKey, {
+        ...cardsByToken.get(tokenKey),
+        ...card,
+        tokenKey,
+      });
+    }
+
+    return [...cardsByToken.values()];
+  }
+
+  private selectDefaultTokenizedCard(
+    webhookCard: NombaTokenizedCardData | undefined,
+    cards: NombaTokenizedCardData[],
+  ) {
+    const webhookTokenKey = this.toUsableTokenKey(webhookCard?.tokenKey);
+
+    if (webhookTokenKey) {
+      const byToken = cards.find(
+        (card) => this.toUsableTokenKey(card.tokenKey) === webhookTokenKey,
+      );
+
+      if (byToken) {
+        return byToken;
+      }
+    }
+
+    if (!webhookCard) {
+      return undefined;
+    }
+
+    const webhookCardType = this.toSafeString(webhookCard.cardType);
+    const webhookCardPan = this.toSafeString(webhookCard.cardPan);
+    const webhookDigits = webhookCardPan.replace(/\D/g, '');
+
+    return cards.find((card) => {
+      const cardType = this.toSafeString(card.cardType);
+      const cardPan = this.toSafeString(card.cardPan);
+      const cardDigits = cardPan.replace(/\D/g, '');
+      const typeMatches = !webhookCardType || cardType === webhookCardType;
+      const panMatches =
+        !webhookDigits ||
+        !cardDigits ||
+        cardDigits.endsWith(webhookDigits.slice(-4));
+
+      return typeMatches && panMatches;
+    });
   }
 
   private async getDashboardDataset(userId: string) {
@@ -1060,6 +1400,26 @@ export class BillingService {
       currency: 'NGN',
       maximumFractionDigits: 0,
     }).format(value);
+  }
+
+  private formatCurrency(value: number, currency: string) {
+    try {
+      return new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: 0,
+      }).format(value);
+    } catch {
+      return `${currency} ${value.toFixed(2)}`;
+    }
+  }
+
+  private maskAccount(accountNumber: string) {
+    if (accountNumber.length <= 4) {
+      return accountNumber;
+    }
+
+    return `${accountNumber.slice(0, 2)}****${accountNumber.slice(-4)}`;
   }
 
   private toNumber(value: string | number | null | undefined) {
@@ -1129,6 +1489,57 @@ export class BillingService {
       createdAt: refund.createdAt.toISOString(),
       updatedAt: refund.updatedAt.toISOString(),
     };
+  }
+
+  private async sendInitialSubscriptionEmails(input: {
+    merchantUserId: string;
+    subscriptionId: string;
+    planId: string;
+    customerEmail: string;
+    amount: string | number;
+    currency: string;
+    paymentAttemptId: string;
+  }) {
+    const [merchant, plan] = await Promise.all([
+      this.usersService.findById(input.merchantUserId),
+      this.billingRepository.findPlanById(input.planId),
+    ]);
+    const planName = plan?.name ?? 'subscription';
+
+    if (merchant?.email) {
+      await this.notificationsService.sendNewSubscriberNotification({
+        merchantEmail: merchant.email,
+        customerEmail: input.customerEmail,
+        planName,
+        amount: input.amount,
+        currency: input.currency,
+        subscriptionId: input.subscriptionId,
+      });
+    }
+
+    await this.notificationsService.sendInitialPaymentReceipt({
+      customerEmail: input.customerEmail,
+      planName,
+      amount: input.amount,
+      currency: input.currency,
+      paymentAttemptId: input.paymentAttemptId,
+    });
+  }
+
+  private async sendRenewalReceipt(input: {
+    planName: string;
+    customerEmail: string;
+    amount: string | number;
+    currency: string;
+    paymentAttemptId: string;
+  }) {
+    await this.notificationsService.sendRenewalPaymentReceipt({
+      customerEmail: input.customerEmail,
+      planName: input.planName,
+      amount: input.amount,
+      currency: input.currency,
+      paymentAttemptId: input.paymentAttemptId,
+    });
   }
 
   private extractNombaTransactionId(value: unknown) {
@@ -1209,6 +1620,16 @@ export class BillingService {
     }
 
     return '';
+  }
+
+  private toUsableTokenKey(value: unknown) {
+    const tokenKey = this.toSafeString(value).trim();
+
+    if (!tokenKey || tokenKey.toUpperCase() === 'N/A') {
+      return undefined;
+    }
+
+    return tokenKey;
   }
 
   private toRecord(value: unknown): Record<string, unknown> {

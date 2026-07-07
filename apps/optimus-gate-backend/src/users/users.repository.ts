@@ -67,6 +67,16 @@ export class UsersRepository {
       .where(eq(users.id, userId));
   }
 
+  async markEmailVerified(userId: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({
+        isEmailVerified: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+  }
+
   private toDomainUser(user: typeof users.$inferSelect): User {
     return {
       id: user.id,

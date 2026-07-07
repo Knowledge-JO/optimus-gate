@@ -10,6 +10,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -86,6 +87,17 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('email-verification/resend')
+  resendEmailVerification(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.resendEmailVerification(user);
+  }
+
+  @Post('email-verification/confirm')
+  confirmEmailVerification(@Body() dto: ConfirmEmailVerificationDto) {
+    return this.authService.confirmEmailVerification(dto.token);
   }
 
   @UseGuards(JwtAuthGuard)

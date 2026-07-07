@@ -3,6 +3,7 @@ import type {
   ApiKeyRecord,
   BankRecord,
   DashboardMetric,
+  NotificationRecord,
   OnboardingChecklistItem,
   PayoutBankAccountRecord,
   PayoutBankAccountSnapshot,
@@ -34,8 +35,11 @@ type BackendSubscriber = Partial<SubscriberRecord> & {
   name?: string | null;
   email?: string | null;
   plan?: string | null;
+  subscriptionId?: string | null;
   lifetimeValue?: string | number | null;
   paymentMethod?: string | null;
+  cancelAtPeriodEnd?: boolean | null;
+  canceledAt?: string | null;
   status?: string | null;
 };
 
@@ -48,7 +52,21 @@ type BackendSubscription = Partial<SubscriptionRecord> & {
   amount?: string | number | null;
   nextCharge?: string | null;
   currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd?: boolean | null;
+  canceledAt?: string | null;
   attempts?: number | null;
+  status?: string | null;
+};
+
+type BackendRefund = Partial<RefundRecord> & {
+  id: string;
+  reference?: string | null;
+  transaction?: string | null;
+  paymentReference?: string | null;
+  customer?: string | null;
+  reason?: string | null;
+  amount?: string | number | null;
+  currency?: string | null;
   status?: string | null;
 };
 
@@ -76,6 +94,7 @@ export const apiTags = {
   subscriptions: "dashboard:subscriptions",
   apiKeys: "dashboard:api-keys",
   transactions: "dashboard:transactions",
+  notifications: "dashboard:notifications",
   refunds: "dashboard:refunds",
   payouts: "dashboard:payouts",
   payoutBanks: "dashboard:payout-banks",
@@ -131,11 +150,20 @@ export async function getTransactions() {
   });
 }
 
+export async function getNotifications() {
+  return readOrEmpty<NotificationRecord>("/billing/notifications", {
+    tags: [apiTags.notifications],
+    revalidate: 20,
+  });
+}
+
 export async function getRefunds() {
-  return readOrEmpty<RefundRecord>("/billing/refunds", {
+  const refunds = await readOrEmpty<BackendRefund>("/billing/refunds", {
     tags: [apiTags.refunds],
     revalidate: 30,
   });
+
+  return refunds.map(toRefundRecord);
 }
 
 export async function getPayouts() {
@@ -228,11 +256,14 @@ function toPlanRecord(plan: BackendPlan): PlanRecord {
 function toSubscriberRecord(subscriber: BackendSubscriber): SubscriberRecord {
   return {
     id: subscriber.id,
+    subscriptionId: subscriber.subscriptionId ?? undefined,
     name: subscriber.name ?? subscriber.email ?? "Unnamed customer",
     email: subscriber.email ?? "No email",
     plan: subscriber.plan ?? "No plan",
     lifetimeValue: toNumber(subscriber.lifetimeValue),
     paymentMethod: subscriber.paymentMethod ?? "No payment method",
+    cancelAtPeriodEnd: Boolean(subscriber.cancelAtPeriodEnd),
+    canceledAt: subscriber.canceledAt ?? null,
     status: subscriber.status ?? "unknown",
   };
 }
@@ -251,8 +282,24 @@ function toSubscriptionRecord(
       subscription.nextCharge ??
       subscription.currentPeriodEnd ??
       "Not scheduled",
+    cancelAtPeriodEnd: Boolean(subscription.cancelAtPeriodEnd),
+    canceledAt: subscription.canceledAt ?? null,
     attempts: subscription.attempts ?? 0,
     status: subscription.status ?? "unknown",
+  };
+}
+
+function toRefundRecord(refund: BackendRefund): RefundRecord {
+  return {
+    id: refund.id,
+    reference: refund.reference ?? refund.id.slice(0, 8),
+    transaction: refund.transaction ?? "Unknown transaction",
+    paymentReference: refund.paymentReference ?? undefined,
+    customer: refund.customer ?? "Unknown customer",
+    reason: refund.reason ?? "Refund",
+    amount: toNumber(refund.amount),
+    currency: refund.currency ?? "NGN",
+    status: refund.status ?? "unknown",
   };
 }
 

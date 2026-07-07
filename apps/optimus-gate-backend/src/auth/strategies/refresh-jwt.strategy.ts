@@ -43,6 +43,7 @@ export class RefreshJwtStrategy extends PassportStrategy(
       email: user.email,
       role: user.role,
       permissions: user.permissions,
+      isEmailVerified: user.isEmailVerified,
       tokenId: payload.tokenId,
       refreshToken:
         cookieExtractor(request) ??

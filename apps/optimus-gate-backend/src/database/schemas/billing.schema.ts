@@ -117,6 +117,10 @@ export const customerPaymentMethods = pgTable(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex('customer_payment_methods_business_token_unique').on(
+      table.businessId,
+      table.tokenKey,
+    ),
     index('customer_payment_methods_business_id_idx').on(table.businessId),
     index('customer_payment_methods_user_id_idx').on(table.userId),
     index('customer_payment_methods_customer_id_idx').on(table.customerId),

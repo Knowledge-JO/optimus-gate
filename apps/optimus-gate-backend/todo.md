@@ -195,12 +195,13 @@ Renewal payment:
 - [x] Mark invoice `paid`.
 - [x] Activate subscription.
 - [x] Set subscription period start/end.
-- [x] Extract and store `tokenKey` if returned.
+- [x] Extract/store `tokenKey` from webhook/tokenized-card-data after verification succeeds.
 - [x] Credit business ledger.
 
 ## 10. Store Tokenized Payment Method
 
 - [x] Store Nomba `tokenKey` against the subscription/customer.
+- [x] Do not rely on transaction verification response for `tokenKey`.
 - [x] Mark as default payment method.
 - [x] Never expose `tokenKey` in API responses.
 - [x] Avoid logging `tokenKey`.

@@ -19,6 +19,11 @@ export function AuthMessage({ state }: { state: AuthActionState }) {
           Reset token: {state.resetToken}
         </p>
       )}
+      {state.verificationToken && (
+        <p className="mt-2 break-all font-mono text-xs">
+          Verification token: {state.verificationToken}
+        </p>
+      )}
     </div>
   );
 }

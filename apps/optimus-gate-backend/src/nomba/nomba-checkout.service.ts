@@ -23,6 +23,25 @@ export interface NombaCheckoutOrderResponse {
   };
 }
 
+export interface NombaTokenizedCardData {
+  tokenKey?: string;
+  customerEmail?: string;
+  cardType?: string;
+  cardPan?: string;
+  tokenExpirationDate?: string;
+  [key: string]: unknown;
+}
+
+export interface NombaTokenizedCardDataResponse {
+  code: string;
+  description?: string;
+  data?: {
+    nextPage?: string;
+    tokenizedCardDataList?: NombaTokenizedCardData[];
+    [key: string]: unknown;
+  };
+}
+
 export interface ChargeTokenizedCardInput {
   orderReference: string;
   customerId: string;
@@ -52,6 +71,7 @@ export class NombaCheckoutService {
           currency: input.currency,
           callbackUrl: input.callbackUrl,
           tokenizeCard: input.tokenizeCard ?? true,
+          allowedPaymentMethods: ['Card'],
           metadata: input.metadata,
           accountId: this.config.subAccountId,
         },
@@ -73,6 +93,25 @@ export class NombaCheckoutService {
           accountId: this.config.subAccountId,
         },
         tokenKey: input.tokenKey,
+      },
+    );
+  }
+
+  listTokenizedCardData(input: {
+    customerEmail?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+  }) {
+    return this.nombaHttpService.get<NombaTokenizedCardDataResponse>(
+      '/v1/checkout/tokenized-card-data',
+      {
+        params: {
+          customerEmail: input.customerEmail,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          page: input.page,
+        },
       },
     );
   }

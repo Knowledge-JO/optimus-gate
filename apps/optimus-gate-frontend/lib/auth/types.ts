@@ -12,6 +12,7 @@ export type AuthResponse = {
   user: AuthUser;
   accessToken: string;
   refreshToken: string;
+  verificationToken?: string;
 };
 
 export type AuthActionState = {
@@ -19,4 +20,5 @@ export type AuthActionState = {
   message?: string;
   fieldErrors?: Record<string, string[]>;
   resetToken?: string;
+  verificationToken?: string;
 };

@@ -43,6 +43,14 @@ JWT_REFRESH_SECRET=dev-refresh-secret
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=30d
 
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=Optimus Gate <notifications@yourdomain.com>
+SMTP_SECURE=false
+APP_FRONTEND_URL=http://localhost:3000
+
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 # or

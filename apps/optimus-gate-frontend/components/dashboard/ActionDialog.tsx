@@ -37,7 +37,7 @@ export function ActionDialog({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="sm:max-w-lg"
+        className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden sm:max-w-lg"
         onInteractOutside={(event) => {
           if (!closeOnOutsideInteract || isComboboxPortalEvent(event)) {
             event.preventDefault();
@@ -60,11 +60,15 @@ export function ActionDialog({
         }}
       >
         <PortalContainerProvider value={portalContainerRef}>
-          <div ref={portalContainerRef} className="contents">
-            <DialogHeader>
-              <DialogTitle>{title}</DialogTitle>
+          <div ref={portalContainerRef} className="contents min-w-0">
+            <DialogHeader className="min-w-0">
+              <DialogTitle className="min-w-0 wrap-break-words pr-8">
+                {title}
+              </DialogTitle>
               {description && (
-                <DialogDescription>{description}</DialogDescription>
+                <DialogDescription className="min-w-0 wrap-break-words pr-8">
+                  {description}
+                </DialogDescription>
               )}
             </DialogHeader>
             {children}

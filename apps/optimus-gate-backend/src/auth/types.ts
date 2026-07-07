@@ -19,6 +19,7 @@ export interface AuthenticatedUser {
   email: string;
   role: UserRole;
   permissions: string[];
+  isEmailVerified: boolean;
 }
 
 export interface RefreshAuthenticatedUser extends AuthenticatedUser {

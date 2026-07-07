@@ -71,6 +71,26 @@ export async function resetPassword(payload: {
   });
 }
 
+export async function resendEmailVerification() {
+  const token = await getAccessToken();
+  if (!token) throw new AuthApiError("You need to sign in again.", 401);
+
+  return authRequest<{ message: string; verificationToken?: string }>(
+    "/auth/email-verification/resend",
+    {
+      method: "POST",
+      accessToken: token,
+    },
+  );
+}
+
+export async function confirmEmailVerification(payload: { token: string }) {
+  return authRequest<{ message: string }>("/auth/email-verification/confirm", {
+    method: "POST",
+    body: payload,
+  });
+}
+
 export async function logout() {
   const refreshToken = await getRefreshToken();
   if (!refreshToken) return;

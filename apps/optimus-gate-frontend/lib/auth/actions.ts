@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import * as authApi from "./api";
 import { clearAuthCookies, setAuthCookies } from "./cookies";
 import {
+  confirmEmailVerificationSchema,
   forgotPasswordSchema,
   loginSchema,
   resetPasswordSchema,
@@ -16,6 +17,7 @@ export async function loginAction(
   formData: FormData,
 ): Promise<AuthActionState> {
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
+  let redirectTo = "/overview";
 
   if (!parsed.success) {
     return validationError(parsed.error.flatten().fieldErrors);
@@ -24,11 +26,12 @@ export async function loginAction(
   try {
     const auth = await authApi.login(parsed.data);
     await setAuthCookies(auth);
+    redirectTo = auth.user.isEmailVerified ? "/overview" : "/verify-email";
   } catch (error) {
     return actionError(error, "Unable to log in. Check your credentials.");
   }
 
-  redirect("/overview");
+  redirect(redirectTo);
 }
 
 export async function signupAction(
@@ -36,6 +39,7 @@ export async function signupAction(
   formData: FormData,
 ): Promise<AuthActionState> {
   const parsed = signupSchema.safeParse(Object.fromEntries(formData));
+  let redirectTo = "/verify-email";
 
   if (!parsed.success) {
     return validationError(parsed.error.flatten().fieldErrors);
@@ -44,11 +48,12 @@ export async function signupAction(
   try {
     const auth = await authApi.signup(parsed.data);
     await setAuthCookies(auth);
+    redirectTo = auth.user.isEmailVerified ? "/overview" : "/verify-email";
   } catch (error) {
     return actionError(error, "Unable to create your account.");
   }
 
-  redirect("/overview");
+  redirect(redirectTo);
 }
 
 export async function forgotPasswordAction(
@@ -91,6 +96,46 @@ export async function resetPasswordAction(
     };
   } catch (error) {
     return actionError(error, "Unable to reset your password.");
+  }
+}
+
+export async function resendEmailVerificationAction(
+  _previousState: AuthActionState,
+): Promise<AuthActionState> {
+  void _previousState;
+
+  try {
+    const result = await authApi.resendEmailVerification();
+    return {
+      status: "success",
+      message: result.message,
+      verificationToken: result.verificationToken,
+    };
+  } catch (error) {
+    return actionError(error, "Unable to resend verification email.");
+  }
+}
+
+export async function confirmEmailVerificationAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const parsed = confirmEmailVerificationSchema.safeParse(
+    Object.fromEntries(formData),
+  );
+
+  if (!parsed.success) {
+    return validationError(parsed.error.flatten().fieldErrors);
+  }
+
+  try {
+    const result = await authApi.confirmEmailVerification(parsed.data);
+    return {
+      status: "success",
+      message: result.message,
+    };
+  } catch (error) {
+    return actionError(error, "Unable to verify your email.");
   }
 }
 

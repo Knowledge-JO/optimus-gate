@@ -15,8 +15,9 @@ export const nombaProviders = [
       const nodeEnv = configService.get<string>('NODE_ENV') ?? 'development';
       return {
         baseUrl:
-          configService.get<string>('NOMBA_BASE_URL') ??
-          'https://sandbox.nomba.com',
+          nodeEnv === 'production'
+            ? (configService.get<string>('NOMBA_LIVE_API_URL') ?? '')
+            : (configService.get<string>('NOMBA_TEST_API_URL') ?? ''),
         accountId: configService.get<string>('NOMBA_ACCOUNT_ID') ?? '',
         clientId:
           nodeEnv === 'production'

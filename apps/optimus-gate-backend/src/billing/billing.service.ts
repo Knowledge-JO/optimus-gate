@@ -17,6 +17,7 @@ import {
 import { NombaRefundService } from '../nomba/nomba-refund.service';
 import {
   NombaTransactionService,
+  type NombaAccountTransaction,
   type NombaTransactionVerificationData,
 } from '../nomba/nomba-transaction.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -870,6 +871,10 @@ export class BillingService {
       verification,
       webhookPayload,
     );
+    const merchantTxRef = this.extractPaymentMerchantTxRef(
+      verification.data,
+      webhookPayload,
+    );
     const transactionMatch = this.getTransactionInvoiceMatch(
       verification.data,
       invoice,
@@ -910,6 +915,7 @@ export class BillingService {
         {
           status: 'failed',
           failureReason,
+          ...(merchantTxRef ? { merchantTxRef } : {}),
           rawResponse,
         },
       );
@@ -920,6 +926,7 @@ export class BillingService {
       checkoutOrder.paymentAttemptId,
       {
         status: 'succeeded',
+        ...(merchantTxRef ? { merchantTxRef } : {}),
         rawResponse,
       },
     );
@@ -995,6 +1002,104 @@ export class BillingService {
     );
   }
 
+  async reconcileNombaTransactions() {
+    const dateTo = new Date();
+    const lastRun =
+      await this.billingRepository.findLastSuccessfulNombaReconciliationRun();
+    const dateFrom =
+      lastRun?.dateTo ?? new Date(dateTo.getTime() - 24 * 60 * 60 * 1000);
+
+    if (dateFrom >= dateTo) {
+      return {
+        status: 'skipped',
+        reason: 'No unreconciled window',
+        dateFrom,
+        dateTo,
+      };
+    }
+
+    const run = await this.billingRepository.createNombaReconciliationRun({
+      status: 'processing',
+      dateFrom,
+      dateTo,
+    });
+    const stats = {
+      checkedCount: 0,
+      matchedCount: 0,
+      reconciledCount: 0,
+      skippedCount: 0,
+      failedCount: 0,
+      unmatchedCount: 0,
+    };
+    const pages: Record<string, unknown>[] = [];
+    let cursor: string | undefined;
+
+    try {
+      do {
+        const response =
+          await this.nombaTransactionService.fetchAccountTransactions({
+            dateFrom: dateFrom.toISOString(),
+            dateTo: dateTo.toISOString(),
+            limit: 100,
+            cursor,
+          });
+        const results = response.data?.results ?? [];
+
+        pages.push({
+          code: response.code,
+          description: response.description,
+          cursor: response.data?.cursor ?? '',
+          resultCount: results.length,
+        });
+
+        for (const transaction of results) {
+          await this.reconcileNombaTransaction(transaction, stats);
+        }
+
+        cursor = response.data?.cursor || undefined;
+      } while (cursor);
+
+      await this.billingRepository.updateNombaReconciliationRun(run.id, {
+        status: 'succeeded',
+        ...stats,
+        cursor: cursor ?? null,
+        rawResponse: { pages },
+        completedAt: new Date(),
+      });
+
+      return {
+        status: 'succeeded',
+        dateFrom,
+        dateTo,
+        ...stats,
+      };
+    } catch (error) {
+      await this.billingRepository.updateNombaReconciliationRun(run.id, {
+        status: 'failed',
+        ...stats,
+        cursor: cursor ?? null,
+        rawResponse: { pages },
+        error: this.getErrorMessage(error),
+        completedAt: new Date(),
+      });
+
+      console.error('[Billing reconcile] Daily Nomba reconciliation failed', {
+        runId: run.id,
+        dateFrom,
+        dateTo,
+        error: this.getErrorMessage(error),
+      });
+
+      return {
+        status: 'failed',
+        dateFrom,
+        dateTo,
+        error: this.getErrorMessage(error),
+        ...stats,
+      };
+    }
+  }
+
   async enqueueDueRenewals() {
     const canceled = await this.cancelDueSubscriptionsAtPeriodEnd();
     const dueSubscriptions = await this.billingRepository.findDueSubscriptions(
@@ -1019,6 +1124,88 @@ export class BillingService {
     }
 
     return { queued: dueSubscriptions.length, canceled };
+  }
+
+  private async reconcileNombaTransaction(
+    transaction: NombaAccountTransaction,
+    stats: {
+      checkedCount: number;
+      matchedCount: number;
+      reconciledCount: number;
+      skippedCount: number;
+      failedCount: number;
+      unmatchedCount: number;
+    },
+  ) {
+    stats.checkedCount += 1;
+
+    if (!this.isSuccessfulNombaStatus(transaction.status)) {
+      stats.skippedCount += 1;
+      return;
+    }
+
+    const merchantTxRef = this.extractNombaTransactionMerchantTxRef(transaction);
+
+    if (!merchantTxRef) {
+      stats.unmatchedCount += 1;
+      console.log(
+        '[Billing reconcile] Skipping transaction without merchantTxRef',
+        {
+          transactionId: transaction.id,
+          status: transaction.status,
+          type: transaction.type,
+        },
+      );
+      return;
+    }
+
+    const attempt =
+      await this.billingRepository.findPaymentAttemptByMerchantTxRef(
+        merchantTxRef,
+      );
+
+    if (!attempt) {
+      stats.unmatchedCount += 1;
+      console.log(
+        '[Billing reconcile] No local payment attempt for merchantTxRef',
+        {
+          merchantTxRef,
+          transactionId: transaction.id,
+          orderReference: transaction.onlineCheckoutOrderReference,
+        },
+      );
+      return;
+    }
+
+    stats.matchedCount += 1;
+
+    if (attempt.status === 'succeeded') {
+      stats.skippedCount += 1;
+      return;
+    }
+
+    try {
+      await this.billingRepository.updatePaymentAttempt(attempt.id, {
+        merchantTxRef,
+      });
+      const result = await this.verifyCheckoutOrder(attempt.providerReference);
+
+      if (result.status === 'succeeded') {
+        stats.reconciledCount += 1;
+        return;
+      }
+
+      stats.failedCount += 1;
+    } catch (error) {
+      stats.failedCount += 1;
+      console.error('[Billing reconcile] Failed to reconcile transaction', {
+        merchantTxRef,
+        transactionId: transaction.id,
+        paymentAttemptId: attempt.id,
+        providerReference: attempt.providerReference,
+        error: this.getErrorMessage(error),
+      });
+    }
   }
 
   async chargeRenewal(subscriptionId: string) {
@@ -1336,6 +1523,25 @@ export class BillingService {
         tokenExpiryYear: this.toSafeString(data.onlineCheckoutTokenExpiryYear),
       },
     };
+  }
+
+  private extractPaymentMerchantTxRef(
+    verificationData: NombaTransactionVerificationData | undefined,
+    webhookPayload: Record<string, unknown> | undefined,
+  ) {
+    const webhookData = this.toRecord(webhookPayload?.data);
+    const webhookTransaction = this.toRecord(webhookData.transaction);
+
+    return (
+      this.toSafeString(verificationData?.merchantTxRef) ||
+      this.toSafeString(webhookTransaction.merchantTxRef)
+    );
+  }
+
+  private extractNombaTransactionMerchantTxRef(
+    transaction: NombaAccountTransaction,
+  ) {
+    return this.toSafeString(transaction.merchantTxRef);
   }
 
   private extractWebhookPaymentDetails(

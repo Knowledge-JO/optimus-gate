@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { DRIZZLE_DB } from '../database/database.constants';
 import {
   businessPayoutBankAccounts,
@@ -8,6 +8,7 @@ import {
   customerPaymentMethods,
   ledgerEntries,
   nombaCheckoutOrders,
+  nombaReconciliationRuns,
   nombaWebhookEvents,
   plans,
   subscriptionInvoices,
@@ -27,9 +28,9 @@ type CustomerPaymentMethod = typeof customerPaymentMethods.$inferSelect;
 type BusinessCustomer = typeof businessCustomers.$inferSelect;
 type NombaCheckoutOrder = typeof nombaCheckoutOrders.$inferSelect;
 type NombaWebhookEvent = typeof nombaWebhookEvents.$inferSelect;
+type NombaReconciliationRun = typeof nombaReconciliationRuns.$inferSelect;
 type LedgerEntry = typeof ledgerEntries.$inferSelect;
-type BusinessPayoutBankAccount =
-  typeof businessPayoutBankAccounts.$inferSelect;
+type BusinessPayoutBankAccount = typeof businessPayoutBankAccounts.$inferSelect;
 type BusinessPayout = typeof businessPayouts.$inferSelect;
 
 @Injectable()
@@ -147,7 +148,9 @@ export class BillingRepository {
       );
   }
 
-  listBusinessPayoutsForBusiness(businessId: string): Promise<BusinessPayout[]> {
+  listBusinessPayoutsForBusiness(
+    businessId: string,
+  ): Promise<BusinessPayout[]> {
     return this.db
       .select()
       .from(businessPayouts)
@@ -220,6 +223,20 @@ export class BillingRepository {
         eq(subscriptionPaymentAttempts.businessId, businessId),
         eq(subscriptionPaymentAttempts.providerReference, providerReference),
       ),
+    });
+  }
+
+  findPaymentAttemptByMerchantTxRef(
+    merchantTxRef: string,
+  ): Promise<SubscriptionPaymentAttempt | undefined> {
+    return this.db.query.subscriptionPaymentAttempts.findFirst({
+      where: or(
+        eq(subscriptionPaymentAttempts.merchantTxRef, merchantTxRef),
+        sql`${subscriptionPaymentAttempts.rawResponse}->'data'->>'merchantTxRef' = ${merchantTxRef}`,
+        sql`${subscriptionPaymentAttempts.rawResponse}->'verificationPayment'->>'merchantTxRef' = ${merchantTxRef}`,
+        sql`${subscriptionPaymentAttempts.rawResponse}->'webhookPayment'->>'merchantTxRef' = ${merchantTxRef}`,
+      ),
+      orderBy: (attempts, { desc }) => [desc(attempts.createdAt)],
     });
   }
 
@@ -472,6 +489,41 @@ export class BillingRepository {
       .update(nombaWebhookEvents)
       .set({ processedAt: new Date() })
       .where(eq(nombaWebhookEvents.id, id))
+      .returning();
+  }
+
+  findLastSuccessfulNombaReconciliationRun(): Promise<
+    NombaReconciliationRun | undefined
+  > {
+    return this.db.query.nombaReconciliationRuns.findFirst({
+      where: eq(nombaReconciliationRuns.status, 'succeeded'),
+      orderBy: (runs, { desc }) => [desc(runs.dateTo)],
+    });
+  }
+
+  async createNombaReconciliationRun(
+    input: typeof nombaReconciliationRuns.$inferInsert,
+  ): Promise<NombaReconciliationRun> {
+    const [run] = await this.db
+      .insert(nombaReconciliationRuns)
+      .values(input)
+      .returning();
+
+    if (!run) {
+      throw new Error('Unable to create Nomba reconciliation run');
+    }
+
+    return run;
+  }
+
+  updateNombaReconciliationRun(
+    id: string,
+    input: Partial<typeof nombaReconciliationRuns.$inferInsert>,
+  ): Promise<NombaReconciliationRun[]> {
+    return this.db
+      .update(nombaReconciliationRuns)
+      .set(input)
+      .where(eq(nombaReconciliationRuns.id, id))
       .returning();
   }
 

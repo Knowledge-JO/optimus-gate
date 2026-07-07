@@ -241,6 +241,7 @@ export const subscriptionPaymentAttempts = pgTable(
     status: paymentAttemptStatusEnum('status').notNull().default('pending'),
     provider: varchar('provider', { length: 40 }).notNull().default('nomba'),
     providerReference: varchar('provider_reference', { length: 160 }).notNull(),
+    merchantTxRef: varchar('merchant_tx_ref', { length: 180 }),
     amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
     currency: varchar('currency', { length: 3 }).notNull().default('NGN'),
     attemptNumber: integer('attempt_number').notNull().default(1),
@@ -259,6 +260,9 @@ export const subscriptionPaymentAttempts = pgTable(
     index('subscription_payment_attempts_invoice_id_idx').on(table.invoiceId),
     index('subscription_payment_attempts_reference_idx').on(
       table.providerReference,
+    ),
+    index('subscription_payment_attempts_merchant_tx_ref_idx').on(
+      table.merchantTxRef,
     ),
     index('subscription_payment_attempts_status_idx').on(table.status),
   ],

@@ -1,7 +1,9 @@
 import {
   index,
+  integer,
   jsonb,
   pgTable,
+  text,
   timestamp,
   uniqueIndex,
   uuid,
@@ -79,5 +81,32 @@ export const nombaWebhookEvents = pgTable(
     index('nomba_webhook_events_business_id_idx').on(table.businessId),
     index('nomba_webhook_events_type_idx').on(table.eventType),
     index('nomba_webhook_events_order_reference_idx').on(table.orderReference),
+  ],
+);
+
+export const nombaReconciliationRuns = pgTable(
+  'nomba_reconciliation_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    status: varchar('status', { length: 40 }).notNull().default('processing'),
+    dateFrom: timestamp('date_from', { withTimezone: true }).notNull(),
+    dateTo: timestamp('date_to', { withTimezone: true }).notNull(),
+    cursor: varchar('cursor', { length: 1000 }),
+    checkedCount: integer('checked_count').notNull().default(0),
+    matchedCount: integer('matched_count').notNull().default(0),
+    reconciledCount: integer('reconciled_count').notNull().default(0),
+    skippedCount: integer('skipped_count').notNull().default(0),
+    failedCount: integer('failed_count').notNull().default(0),
+    unmatchedCount: integer('unmatched_count').notNull().default(0),
+    rawResponse: jsonb('raw_response').$type<Record<string, unknown>>(),
+    error: text('error'),
+    startedAt: timestamp('started_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('nomba_reconciliation_runs_status_idx').on(table.status),
+    index('nomba_reconciliation_runs_date_to_idx').on(table.dateTo),
   ],
 );

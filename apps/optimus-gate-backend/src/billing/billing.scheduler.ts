@@ -10,4 +10,9 @@ export class BillingScheduler {
   enqueueDueRenewals() {
     return this.billingService.enqueueDueRenewals();
   }
+
+  @Cron('0 0 * * *', { timeZone: 'Africa/Lagos' })
+  reconcileNombaTransactions() {
+    return this.billingService.reconcileNombaTransactions();
+  }
 }

@@ -523,7 +523,7 @@ export class BillingService {
         attempt.providerReference,
       );
 
-    if (verification.code !== '00' || verification.data?.status !== 'SUCCESS') {
+    if (!this.isSuccessfulNombaVerification(verification)) {
       throw new BadRequestException(
         verification.description ?? 'Original payment could not be verified',
       );
@@ -866,22 +866,51 @@ export class BillingService {
       throw new NotFoundException('Invoice not found');
     }
 
+    const rawResponse = this.buildPaymentAttemptRawResponse(
+      verification,
+      webhookPayload,
+    );
+    const transactionMatch = this.getTransactionInvoiceMatch(
+      verification.data,
+      invoice,
+      orderReference,
+    );
+
+    console.log(
+      '[Billing reconcile] Nomba transaction verification',
+      JSON.stringify(
+        {
+          orderReference,
+          invoiceId: invoice.id,
+          paymentAttemptId: checkoutOrder.paymentAttemptId,
+          verificationCode: verification.code,
+          verificationDescription: verification.description,
+          verificationStatus: verification.data?.status,
+          isSuccessfulVerification:
+            this.isSuccessfulNombaVerification(verification),
+          transactionMatch,
+        },
+        null,
+        2,
+      ),
+    );
+
     if (
-      verification.code !== '00' ||
-      verification.data?.status !== 'SUCCESS' ||
-      !this.transactionMatchesInvoice(
-        verification.data,
-        invoice,
-        orderReference,
-      )
+      !this.isSuccessfulNombaVerification(verification) ||
+      !transactionMatch.matches
     ) {
+      const failureReason = this.isSuccessfulNombaVerification(verification)
+        ? `Transaction verification did not match invoice: ${this.getTransactionMismatchReason(
+            transactionMatch,
+          )}`
+        : (verification.description ?? verification.data?.status ?? 'Failed');
+
       await this.billingRepository.updatePaymentAttempt(
         checkoutOrder.paymentAttemptId,
         {
           status: 'failed',
-          failureReason:
-            verification.description ?? verification.data?.status ?? 'Failed',
-          rawResponse: this.toRecord(verification),
+          failureReason,
+          rawResponse,
         },
       );
       return { status: 'failed', verification };
@@ -891,7 +920,7 @@ export class BillingService {
       checkoutOrder.paymentAttemptId,
       {
         status: 'succeeded',
-        rawResponse: this.toRecord(verification),
+        rawResponse,
       },
     );
     await this.billingRepository.updateInvoice(checkoutOrder.invoiceId, {
@@ -1080,7 +1109,7 @@ export class BillingService {
     const verification =
       await this.nombaTransactionService.verifyByOrderReference(orderReference);
 
-    if (verification.code !== '00' || verification.data?.status !== 'SUCCESS') {
+    if (!this.isSuccessfulNombaVerification(verification)) {
       await this.billingRepository.updatePaymentAttempt(attempt.id, {
         status: 'pending',
         rawResponse: this.toRecord(verification),
@@ -1242,6 +1271,109 @@ export class BillingService {
     } catch {
       return [];
     }
+  }
+
+  private buildPaymentAttemptRawResponse(
+    verification: unknown,
+    webhookPayload: Record<string, unknown> | undefined,
+  ) {
+    const rawResponse = this.toRecord(verification);
+    const verificationPayment = this.extractVerificationPaymentDetails(
+      this.toRecord(rawResponse.data),
+    );
+    const webhookPayment = this.extractWebhookPaymentDetails(webhookPayload);
+
+    if (!verificationPayment && !webhookPayment) {
+      return rawResponse;
+    }
+
+    return {
+      ...rawResponse,
+      verificationPayment,
+      webhookPayment,
+    };
+  }
+
+  private extractVerificationPaymentDetails(
+    data: Record<string, unknown> | undefined,
+  ) {
+    if (!data || !Object.keys(data).length) {
+      return undefined;
+    }
+
+    return {
+      orderReference: this.toSafeString(data.onlineCheckoutOrderReference),
+      orderId: this.toSafeString(data.onlineCheckoutOrderId),
+      transactionId:
+        this.toSafeString(data.id) || this.toSafeString(data.transactionId),
+      merchantTxRef: this.toSafeString(data.merchantTxRef),
+      transactionType: this.toSafeString(data.type),
+      transactionTime:
+        this.toSafeString(data.onlineCheckoutTransactionCompletedDate) ||
+        this.toSafeString(data.onlineCheckoutTransactionDate) ||
+        this.toSafeString(data.timeCreated),
+      amount:
+        this.toSafeString(data.onlineCheckoutAmount) ||
+        this.toSafeString(data.amount),
+      currency:
+        this.toSafeString(data.onlineCheckoutCurrency) ||
+        this.toSafeString(data.currency),
+      customerEmail: this.toSafeString(data.onlineCheckoutCustomerEmail),
+      card: {
+        tokenKey: this.toSafeString(data.onlineCheckoutTokenKey),
+        cardType:
+          this.toSafeString(data.onlineCheckoutCardType) ||
+          this.toSafeString(data.cardIssuer),
+        cardPan:
+          this.toSafeString(data.onlineCheckoutCardPan) ||
+          this.toSafeString(data.cardPan),
+        cardLast4Digits: this.toSafeString(
+          data.onlineCheckoutCardPanLast4Digits,
+        ),
+        tokenExpiryMonth: this.toSafeString(
+          data.onlineCheckoutTokenExpiryMonth,
+        ),
+        tokenExpiryYear: this.toSafeString(data.onlineCheckoutTokenExpiryYear),
+      },
+    };
+  }
+
+  private extractWebhookPaymentDetails(
+    payload: Record<string, unknown> | undefined,
+  ) {
+    const data = this.toRecord(payload?.data);
+    const order = this.toRecord(data.order);
+    const transaction = this.toRecord(data.transaction);
+    const tokenizedCardData = this.toRecord(data.tokenizedCardData);
+
+    if (
+      !Object.keys(order).length &&
+      !Object.keys(transaction).length &&
+      !Object.keys(tokenizedCardData).length
+    ) {
+      return undefined;
+    }
+
+    return {
+      orderReference: this.toSafeString(order.orderReference),
+      orderId: this.toSafeString(order.orderId),
+      transactionId: this.toSafeString(transaction.transactionId),
+      merchantTxRef: this.toSafeString(transaction.merchantTxRef),
+      transactionType: this.toSafeString(transaction.type),
+      transactionTime: this.toSafeString(transaction.time),
+      card: {
+        tokenKey: this.toSafeString(tokenizedCardData.tokenKey),
+        cardType:
+          this.toSafeString(tokenizedCardData.cardType) ||
+          this.toSafeString(order.cardType),
+        cardPan: this.toSafeString(tokenizedCardData.cardPan),
+        cardLast4Digits: this.toSafeString(order.cardLast4Digits),
+        tokenExpiryMonth: this.toSafeString(
+          tokenizedCardData.tokenExpiryMonth,
+        ),
+        tokenExpiryYear: this.toSafeString(tokenizedCardData.tokenExpiryYear),
+      },
+    };
   }
 
   private extractWebhookTokenizedCard(
@@ -1568,23 +1700,107 @@ export class BillingService {
     return 'Unknown error';
   }
 
-  private transactionMatchesInvoice(
+  private isSuccessfulNombaVerification(verification: {
+    code?: string;
+    data?: { status?: unknown };
+  }) {
+    return (
+      verification.code === '00' &&
+      this.isSuccessfulNombaStatus(verification.data?.status)
+    );
+  }
+
+  private isSuccessfulNombaStatus(status: unknown) {
+    const normalizedStatus = this.toSafeString(status).trim().toUpperCase();
+
+    return ['SUCCESS', 'SUCCESSFUL'].includes(normalizedStatus);
+  }
+
+  private getTransactionInvoiceMatch(
     data: NombaTransactionVerificationData | undefined,
     invoice: { amount: string; currency: string },
     orderReference: string,
   ) {
     if (!data) {
-      return false;
+      return {
+        matches: false,
+        reason: 'missing_verification_data',
+      };
     }
 
-    const responseOrderReference = this.toSafeString(data.orderReference);
-    const responseAmount = this.toSafeString(data.amount);
-    const responseCurrency = this.toSafeString(data.currency);
+    const order = this.toRecord(data.order);
+    const transaction = this.toRecord(data.transaction);
+    const responseOrderReference =
+      this.toSafeString(data.onlineCheckoutOrderReference) ||
+      this.toSafeString(data.orderReference) ||
+      this.toSafeString(order.orderReference);
+    const responseAmount =
+      this.toSafeString(data.onlineCheckoutAmount) ||
+      this.toSafeString(data.amount) ||
+      this.toSafeString(data.transactionAmount) ||
+      this.toSafeString(order.amount) ||
+      this.toSafeString(transaction.amount) ||
+      this.toSafeString(transaction.transactionAmount);
+    const responseCurrency =
+      this.toSafeString(data.onlineCheckoutCurrency) ||
+      this.toSafeString(data.currency) ||
+      this.toSafeString(order.currency) ||
+      this.toSafeString(transaction.currency);
+    const orderReferenceMatches =
+      !responseOrderReference || responseOrderReference === orderReference;
+    const amountMatches =
+      !responseAmount || this.amountsMatch(responseAmount, invoice.amount);
+    const currencyMatches =
+      !responseCurrency ||
+      responseCurrency.toUpperCase() === invoice.currency.toUpperCase();
+
+    return {
+      matches: orderReferenceMatches && amountMatches && currencyMatches,
+      orderReference: {
+        expected: orderReference,
+        received: responseOrderReference,
+        matches: orderReferenceMatches,
+      },
+      amount: {
+        expected: invoice.amount,
+        received: responseAmount,
+        matches: amountMatches,
+      },
+      currency: {
+        expected: invoice.currency,
+        received: responseCurrency,
+        matches: currencyMatches,
+      },
+    };
+  }
+
+  private getTransactionMismatchReason(match: {
+    reason?: string;
+    orderReference?: { matches: boolean };
+    amount?: { matches: boolean };
+    currency?: { matches: boolean };
+  }) {
+    if (match.reason) {
+      return match.reason;
+    }
+
+    const mismatches = [
+      match.orderReference?.matches === false ? 'orderReference' : undefined,
+      match.amount?.matches === false ? 'amount' : undefined,
+      match.currency?.matches === false ? 'currency' : undefined,
+    ].filter(Boolean);
+
+    return mismatches.join(', ') || 'unknown';
+  }
+
+  private amountsMatch(first: unknown, second: unknown) {
+    const firstAmount = Number(this.toSafeString(first));
+    const secondAmount = Number(this.toSafeString(second));
 
     return (
-      (!responseOrderReference || responseOrderReference === orderReference) &&
-      (!responseAmount || responseAmount === invoice.amount) &&
-      (!responseCurrency || responseCurrency === invoice.currency)
+      Number.isFinite(firstAmount) &&
+      Number.isFinite(secondAmount) &&
+      Math.abs(firstAmount - secondAmount) < 0.01
     );
   }
 

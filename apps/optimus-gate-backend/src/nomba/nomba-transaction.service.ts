@@ -4,6 +4,7 @@ import { NombaHttpService } from './nomba-http.service';
 export interface NombaTransactionVerificationResponse {
   code: string;
   description?: string;
+  status?: boolean;
   data?: NombaTransactionVerificationData;
 }
 
@@ -17,6 +18,20 @@ export interface NombaTransactionVerificationData extends Record<
   id?: string;
   transactionId?: string;
   orderReference?: string;
+  merchantTxRef?: string;
+  onlineCheckoutAmount?: string;
+  onlineCheckoutCardPan?: string;
+  onlineCheckoutCardPanLast4Digits?: string;
+  onlineCheckoutCardType?: string;
+  onlineCheckoutCurrency?: string;
+  onlineCheckoutCustomerEmail?: string;
+  onlineCheckoutOrderId?: string;
+  onlineCheckoutOrderReference?: string;
+  onlineCheckoutTokenExpiryMonth?: string;
+  onlineCheckoutTokenExpiryYear?: string;
+  onlineCheckoutTokenKey?: string;
+  onlineCheckoutTransactionCompletedDate?: string;
+  onlineCheckoutTransactionDate?: string;
   customerId?: string | number;
   customerEmail?: string;
 }

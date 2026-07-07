@@ -14,12 +14,19 @@ export class NombaWebhookService {
     timestamp?: string,
   ) {
     if (!this.config.webhookSecret || !signature || !timestamp) {
-      console.log('[Nomba webhook] No signature or timestamp for webhook', {
-        hasWebhookSecret: Boolean(this.config.webhookSecret),
-        hasSignature: Boolean(signature),
-        hasTimestamp: Boolean(timestamp),
-        context: this.getWebhookLogContext(payload),
-      });
+      console.log(
+        '[Nomba webhook] No signature or timestamp for webhook',
+        JSON.stringify(
+          {
+            hasWebhookSecret: Boolean(this.config.webhookSecret),
+            hasSignature: Boolean(signature),
+            hasTimestamp: Boolean(timestamp),
+            context: this.getWebhookLogContext(payload),
+          },
+          null,
+          2,
+        ),
+      );
 
       throw new UnauthorizedException('Invalid Nomba webhook signature');
     }
@@ -36,21 +43,35 @@ export class NombaWebhookService {
       expectedBuffer.length !== signatureBuffer.length ||
       !timingSafeEqual(expectedBuffer, signatureBuffer)
     ) {
-      console.log('[Nomba webhook] Invalid webhook signature', {
-        context: this.getWebhookLogContext(payload),
-        hashingPayload,
-        expectedSignature: expected,
-        receivedSignature: signature.trim(),
-        timestamp: timestamp.trim(),
-      });
+      console.log(
+        '[Nomba webhook] Invalid webhook signature',
+        JSON.stringify(
+          {
+            context: this.getWebhookLogContext(payload),
+            hashingPayload,
+            expectedSignature: expected,
+            receivedSignature: signature.trim(),
+            timestamp: timestamp.trim(),
+          },
+          null,
+          2,
+        ),
+      );
 
       throw new UnauthorizedException('Invalid Nomba webhook signature');
     }
 
-    console.log('[Nomba webhook] Valid webhook signature', {
-      context: this.getWebhookLogContext(payload),
-      timestamp: timestamp.trim(),
-    });
+    console.log(
+      '[Nomba webhook] Valid webhook signature',
+      JSON.stringify(
+        {
+          context: this.getWebhookLogContext(payload),
+          timestamp: timestamp.trim(),
+        },
+        null,
+        2,
+      ),
+    );
   }
 
   generateSignature(payload: NombaWebhookPayload, timestamp: string) {

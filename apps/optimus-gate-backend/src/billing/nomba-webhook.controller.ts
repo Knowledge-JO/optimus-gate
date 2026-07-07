@@ -20,20 +20,27 @@ export class NombaWebhookController {
     @Headers('nomba-sig-value') signatureValue?: string,
     @Headers('nomba-timestamp') timestamp?: string,
   ) {
-    console.log('[Nomba webhook] Received webhook', {
-      eventType:
-        this.toSafeString(payload.event_type) ??
-        this.toSafeString(payload.eventType) ??
-        this.toSafeString(payload.type) ??
-        'unknown',
-      requestId:
-        this.toSafeString(payload.requestId) ??
-        this.toSafeString(payload.request_id),
-      hasNombaSignature: Boolean(signature),
-      hasNombaSigValue: Boolean(signatureValue),
-      hasNombaTimestamp: Boolean(timestamp),
-      payload,
-    });
+    console.log(
+      '[Nomba webhook] Received webhook',
+      JSON.stringify(
+        {
+          eventType:
+            this.toSafeString(payload.event_type) ??
+            this.toSafeString(payload.eventType) ??
+            this.toSafeString(payload.type) ??
+            'unknown',
+          requestId:
+            this.toSafeString(payload.requestId) ??
+            this.toSafeString(payload.request_id),
+          hasNombaSignature: Boolean(signature),
+          hasNombaSigValue: Boolean(signatureValue),
+          hasNombaTimestamp: Boolean(timestamp),
+          payload,
+        },
+        null,
+        2,
+      ),
+    );
 
     this.nombaWebhookService.verifySignature(
       payload,
@@ -94,29 +101,8 @@ export class NombaWebhookController {
   private extractOrderReference(payload: Record<string, unknown>) {
     const data = payload.data as Record<string, unknown> | undefined;
     const order = data?.order as Record<string, unknown> | undefined;
-    const transaction = data?.transaction as
-      Record<string, unknown> | undefined;
 
-    return (
-      this.toSafeString(data?.orderReference) ??
-      this.toSafeString(order?.orderReference) ??
-      this.toSafeString(transaction?.orderReference) ??
-      this.toSafeString(payload.orderReference) ??
-      this.toSafeString(payload.transactionRef) ??
-      this.toSafeString(payload.transactionReference) ??
-      this.toOptimusOrderReference(transaction?.merchantTxRef) ??
-      ''
-    );
-  }
-
-  private toOptimusOrderReference(value: unknown) {
-    const reference = this.toSafeString(value);
-
-    if (reference?.startsWith('og_')) {
-      return reference;
-    }
-
-    return undefined;
+    return this.toSafeString(order?.orderReference) ?? '';
   }
 
   private toSafeString(value: unknown) {

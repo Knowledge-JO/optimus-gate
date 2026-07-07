@@ -2,13 +2,13 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
-import type { IncomingMessage } from 'http';
-import { json } from 'express';
+// import type { IncomingMessage } from 'http';
+// import { json } from 'express';
 import { AppModule } from './app.module';
 
-type RawBodyIncomingMessage = IncomingMessage & {
-  rawBody?: Buffer;
-};
+// type RawBodyIncomingMessage = IncomingMessage & {
+//   rawBody?: Buffer;
+// };
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -42,15 +42,15 @@ async function bootstrap() {
     maxAge: configService.get<number>('CORS_MAX_AGE') ?? 86_400,
     optionsSuccessStatus: 204,
   });
-  app.use(
-    json({
-      verify: (request: RawBodyIncomingMessage, _response, buffer) => {
-        if (request.url?.startsWith('/webhook')) {
-          request.rawBody = Buffer.from(buffer);
-        }
-      },
-    }),
-  );
+  // app.use(
+  //   json({
+  //     verify: (request: RawBodyIncomingMessage, _response, buffer) => {
+  //       if (request.url?.startsWith('/webhook')) {
+  //         request.rawBody = Buffer.from(buffer);
+  //       }
+  //     },
+  //   }),
+  // );
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({

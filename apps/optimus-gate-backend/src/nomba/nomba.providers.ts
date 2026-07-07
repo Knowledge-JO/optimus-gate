@@ -28,10 +28,7 @@ export const nombaProviders = [
             ? (configService.get<string>('LIVE_NOMBA_PRIVATE_KEY') ?? '')
             : (configService.get<string>('TEST_NOMBA_PRIVATE_KEY') ?? ''),
         webhookSecret: configService.get<string>('NOMBA_WEBHOOK_SECRET') ?? '',
-        subAccountId:
-          configService.get<string>('NOMBA_SUB_ACCOUNT_ID') ??
-          configService.get<string>('SUB_ACCOUNT_ID') ??
-          '',
+        subAccountId: configService.get<string>('SUB_ACCOUNT_ID') ?? '',
       };
     },
   },

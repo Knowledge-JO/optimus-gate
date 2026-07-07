@@ -73,13 +73,15 @@ function getTrackerValue(value: unknown) {
         TRUST_PROXY: Joi.alternatives()
           .try(Joi.boolean(), Joi.number().integer().min(0), Joi.string())
           .optional(),
-        NOMBA_BASE_URL: Joi.string().uri().optional(),
         NOMBA_ACCOUNT_ID: Joi.string().optional(),
-        NOMBA_CLIENT_ID: Joi.string().optional(),
-        NOMBA_CLIENT_SECRET: Joi.string().optional(),
+        TEST_NOMBA_CLIENT_ID: Joi.string().optional(),
+        TEST_NOMBA_PRIVATE_KEY: Joi.string().optional(),
+        LIVE_NOMBA_CLIENT_ID: Joi.string().optional(),
+        LIVE_NOMBA_PRIVATE_KEY: Joi.string().optional(),
         NOMBA_WEBHOOK_SECRET: Joi.string().optional(),
-        NOMBA_SUB_ACCOUNT_ID: Joi.string().optional(),
         SUB_ACCOUNT_ID: Joi.string().optional(),
+        NOMBA_LIVE_API_URL: Joi.string().uri().optional(),
+        NOMBA_TEST_API_URL: Joi.string().uri().optional(),
         REDIS_URL: Joi.string()
           .uri({
             scheme: ['redis', 'rediss'],

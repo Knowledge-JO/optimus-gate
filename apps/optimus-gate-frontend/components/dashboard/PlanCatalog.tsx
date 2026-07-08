@@ -37,12 +37,26 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TablePagination } from "@/components/layout/TablePagination";
+import { useTableState } from "@/hooks/useTableState";
 
 const initialState: MutationState = { status: "idle" };
 const initialReconcileState: ReconcileCheckoutOrdersState = { status: "idle" };
 
 export function PlanCatalog({ plans }: { plans: PlanRecord[] }) {
   const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null);
+
+  const { pageRows, filtered, page, totalPages, goToPage } = useTableState<
+    PlanRecord,
+    PlanRecord["status"]
+  >({
+    data: plans,
+    filterTabs: ["active", "inactive"],
+    getStatus: (item) => item.status,
+    getSearchableText: (item) => `${item.name} ${item.code}`,
+    pageSize: 5,
+  });
+
   const columns: OperationsColumn<PlanRecord>[] = [
     { key: "name", header: "Plan" },
     {
@@ -74,13 +88,25 @@ export function PlanCatalog({ plans }: { plans: PlanRecord[] }) {
 
   return (
     <>
-      <OperationsTable
-        rows={plans}
-        columns={columns}
-        emptyTitle="No plans yet"
-        emptyDescription="Create a backend plan to populate this catalog."
-        onRowClick={setSelectedPlan}
-      />
+      <div className=" bg-white overflow-hidden">
+        <OperationsTable
+          rows={pageRows}
+          columns={columns}
+          emptyTitle="No plans yet"
+          emptyDescription="Create a backend plan to populate this catalog."
+          onRowClick={setSelectedPlan}
+        />
+        <div className="p-4">
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            showingCount={pageRows.length}
+            totalCount={filtered.length}
+            onPageChange={goToPage}
+          />
+        </div>
+      </div>
+
       <PlanDetailsDialog
         key={selectedPlan?.id ?? "no-plan"}
         plan={selectedPlan}

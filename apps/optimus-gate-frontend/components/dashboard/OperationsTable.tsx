@@ -90,13 +90,24 @@ export function OperationsTable<T extends { id: string }>({
 
 export function statusTone(status: string) {
   const normalized = status.toLowerCase();
-  if (["active", "paid", "success", "succeeded", "verified"].includes(normalized)) {
+  if (
+    ["active", "paid", "success", "succeeded", "verified"].includes(normalized)
+  ) {
     return "green";
   }
   if (["pending", "processing", "open", "attention"].includes(normalized)) {
     return "amber";
   }
-  if (["failed", "refunded", "reversed", "revoked", "canceled", "cancelled"].includes(normalized)) {
+  if (
+    [
+      "failed",
+      "refunded",
+      "reversed",
+      "revoked",
+      "canceled",
+      "cancelled",
+    ].includes(normalized)
+  ) {
     return "red";
   }
   if (["scheduled", "settled", "completed"].includes(normalized)) {

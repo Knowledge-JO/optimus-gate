@@ -20,9 +20,9 @@ export function SearchInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "h-9 rounded-full border-transparent bg-slate-50 pl-9 pr-12 text-sm text-slate-700 placeholder:text-slate-400 shadow-none",
+          "h-9 rounded-lg border-black/10 bg-white pl-9 pr-12 text-sm text-zinc-700 placeholder:text-zinc-400 shadow-none",
           "transition-colors",
-          "focus-visible:border-brand focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-brand/30",
+          "focus-visible:border-black focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-black/10",
         )}
       />
     </div>
